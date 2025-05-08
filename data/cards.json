@@ -1,0 +1,115 @@
+[
+  {
+    "id": 0,
+    "name": "Fireball",
+    "cost": 2,
+    "description": "Inflige 3 puntos de daño a un enemigo.",
+    "artwork": "res://assets/fireball.png",
+    "background": "res://assets/card_bg_attack.png",
+    "card_type": "ATTACK",
+    "power": 3,
+    "effects": [{ "type": "DAMAGE", "value": 3 }],
+    "available_to": ["player", "enemy_boss"],
+    "tags": ["fire", "magic", "attack", "starter"]
+  },
+  {
+    "id": 1,
+    "name": "Shield",
+    "cost": 1,
+    "description": "Otorga 5 puntos de escudo.",
+    "artwork": "res://assets/shield.png",
+    "background": "res://assets/card_bg_defense.png",
+    "card_type": "DEFENSE",
+    "power": 5,
+    "effects": [{ "type": "SHIELD", "value": 5 }],
+    "available_to": ["player"],
+    "tags": ["defense", "starter"]
+  },
+  {
+    "id": 2,
+    "name": "HealHand",
+    "cost": 2,
+    "description": "Otorga 5 puntos de cura.",
+    "artwork": "res://assets/shield.png",
+    "background": "res://assets/card_bg_defense.png",
+    "card_type": "HEAL",
+    "power": 5,
+    "effects": [{ "type": "HEAL", "value": 5 }],
+    "available_to": ["player"],
+    "tags": ["heal", "magic", "starter"]
+  },
+  {
+    "id": 3,
+    "name": "StealLife",
+    "cost": 3,
+    "description": "Inflige 2 de daño, cura 2.",
+    "artwork": "res://assets/shield.png",
+    "background": "res://assets/card_bg_defense.png",
+    "card_type": "ATTACK",
+    "power": 2,
+    "effects": [
+      { "type": "HEAL", "value": 2 },
+      { "type": "DAMAGE", "value": 2 }
+    ],
+    "available_to": ["player", "enemy_boss"],
+    "tags": ["magic", "attack", "starter", "heal"]
+  },
+  {
+    "id": 4,
+    "name": "Punch",
+    "cost": 1,
+    "description": "Inflige 3 puntos de daño a un enemigo.",
+    "artwork": "res://assets/fireball.png",
+    "background": "res://assets/card_bg_attack.png",
+    "card_type": "ATTACK",
+    "power": 3,
+    "effects": [{ "type": "DAMAGE", "value": 3 }],
+    "available_to": ["player", "enemy_boss"],
+    "tags": ["attack", "starter"]
+  },
+  {
+    "id": 5,
+    "name": "Crunch",
+    "cost": 0,
+    "description": "Inflige 3 puntos de daño.",
+    "artwork": "res://assets/shield.png",
+    "background": "res://assets/card_bg_defense.png",
+    "card_type": "ATTACK",
+    "power": 3,
+    "effects": [{ "type": "DAMAGE", "value": 3 }],
+    "available_to": ["enemy_boss"],
+    "tags": ["beast", "attack"]
+  },
+  {
+    "id": 6,
+    "name": "Frostbite",
+    "cost": 2,
+    "description": "Inflige 3 puntos de daño y congela al enemigo.",
+    "artwork": null,
+    "background": null,
+    "card_type": "ATTACK",
+    "power": 3,
+    "effects": [
+      { "type": "DEBUFF", "value": 1 },
+      { "type": "DAMAGE", "value": 3 }
+    ],
+    "available_to": ["player", "enemy_boss"],
+    "tags": ["ice", "attack"]
+  },
+  {
+    "id": 7,
+    "name": "Rest",
+    "cost": 3,
+    "description": "Cura 2, roba una carta.",
+    "artwork": null,
+    "background": null,
+    "card_type": "HEAL",
+    "power": 2,
+    "effects": [
+      { "type": "HEAL", "value": 2 },
+      { "type": "DRAW", "value": 1 }
+    ],
+    "available_to": ["player"],
+    "tags": ["heal", "magic", "draw", "starter"]
+  }
+]

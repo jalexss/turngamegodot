@@ -1,0 +1,20 @@
+[gd_scene load_steps=7 format=3 uid="uid://b2reu6uluh32d"]
+
+[ext_resource type="Script" uid="uid://bk6pf0c3bpows" path="res://scripts/Game.gd" id="1_78awf"]
+[ext_resource type="PackedScene" uid="uid://bw3fx7aj0egrj" path="res://scenes/Hand.tscn" id="1_cpr0p"]
+[ext_resource type="PackedScene" uid="uid://cbvvctxlbhxuj" path="res://scenes/Deck.tscn" id="2_78awf"]
+[ext_resource type="Script" uid="uid://b8jntvryj1hox" path="res://scripts/Hand.gd" id="3_aug50"]
+[ext_resource type="Script" uid="uid://bwoiew0r86rrx" path="res://scripts/Deck.gd" id="5_kiw3p"]
+[ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="6_400sg"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_78awf")
+
+[node name="Hand" parent="." instance=ExtResource("1_cpr0p")]
+script = ExtResource("3_aug50")
+
+[node name="Deck" parent="." instance=ExtResource("2_78awf")]
+script = ExtResource("5_kiw3p")
+
+[node name="CardContainer" type="Node2D" parent="."]
+script = ExtResource("6_400sg")
