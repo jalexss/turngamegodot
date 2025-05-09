@@ -1,17 +1,14 @@
 extends Node2D
 
-const CdData = preload("res://scripts/CardData.gd")
-const JSON_PATH = "res://data/cards.json"
-const PLAYER_DECK_PATH = "res://data/player_deck.json"
+const CdData     = preload("res://scripts/CardData.gd")
+const JSON_PATH  = "res://data/cards.json"
 
 var cards: Array = []
 
-func _ready():
-    # 1) cargo todas las definiciones de carta en un Dictionary[id] = CardData
+# Público: carga definiciones y genera/mezcla el mazo según el JSON de lista
+func load_deck(deck_list_path: String) -> void:
     var defs = _load_card_defs(JSON_PATH)
-    # 2) genero el mazo del jugador según player_deck.json
-    cards = _generate_deck(defs, PLAYER_DECK_PATH)
-    # 3) barajo
+    cards = _generate_deck(defs, deck_list_path)
     shuffle()
 
 func _load_card_defs(path: String) -> Dictionary:
@@ -20,13 +17,11 @@ func _load_card_defs(path: String) -> Dictionary:
     if not file:
         push_error("No se pudo abrir " + path)
         return dict
-    var text = file.get_as_text()
+    var res = JSON.parse_string(file.get_as_text())
     file.close()
-    var res = JSON.parse_string(text)
     if res.error != OK:
         push_error("Error parseando JSON: %s" % res.error_string)
         return dict
-    # convierto cada entry en un CardData
     for def in res.result:
         var cd = CdData.new()
         cd.id          = def.get("id", 0)
@@ -43,23 +38,24 @@ func _load_card_defs(path: String) -> Dictionary:
         dict[cd.id] = cd
     return dict
 
-func _generate_deck(defs:Dictionary, deck_list_path:String) -> Array:
-    var ids = _load_id_list(deck_list_path)  # lee data/player_deck.json ‑> [0,2,5…]
+func _generate_deck(defs: Dictionary, deck_list_path: String) -> Array:
+    var ids = _load_id_list(deck_list_path)
     var list := []
     for id in ids:
         if defs.has(id):
             list.append(defs[id])
     return list
 
-func _load_id_list(path:String) -> Array:
+func _load_id_list(path: String) -> Array:
     var file = FileAccess.open(path, FileAccess.READ)
-    var text = file.get_as_text(); file.close()
-    return JSON.parse_string(text).result.get("deck", [])
+    var text = file.get_as_text()
+    file.close()
+    var parsed = JSON.parse_string(text)
+    return  parsed.result.get("deck", []) if parsed.error == OK else []
+    # return parsed.error == OK ? parsed.result.get("deck", []) : []
 
-func shuffle():
-  cards.shuffle()
+func shuffle() -> void:
+    cards.shuffle()
 
-func draw() -> Dictionary:
-  if cards.size() == 0:
-    return {}
-  return cards.pop_front()
+func draw() -> CardData:
+    return cards.pop_front() if cards.size() > 0 else null

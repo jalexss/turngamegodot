@@ -1,51 +1,79 @@
 extends Node2D
 
-const CardScene = preload("res://scenes/Card.tscn")
+const ENEMY_DECKS_PATH = "res://data/enemy_decks.json"
 
 @onready var deck = $Deck
 @onready var ui   = $GameUI as Control
 
 var turn_num := 0
 var energy   := 0
+var player_chars : Array = []
+var enemy_chars  : Array = []
+var char_defs    : Dictionary = {}
+var enemy_defs   : Dictionary = {}
 
 func _ready() -> void:
+    # cargar personajes y generar roster...
+    char_defs  = _load_char_defs("res://data/characters.json")
+    enemy_defs = _load_char_defs("res://data/enemies.json")
+    player_chars = _generate_roster(char_defs, 1, 3)
+    enemy_chars  = _generate_roster(enemy_defs, 1, 5)
+
+    # delegar al Deck la carga de cartas y barajar
+    var enemy_decks = _load_enemy_decks(ENEMY_DECKS_PATH)
+    deck.load_deck(enemy_decks["enemy_boss"])
+
     _start_turn()
 
 func _start_turn() -> void:
     turn_num += 1
-    energy = 3  # o lo que toque según reglas
+    energy = 3
     ui.set_turn(turn_num)
     ui.set_energy(energy)
     ui.clear_hand()
-
-    # ejemplo de personajes, reemplaza por tu lógica real
-    ui.update_player_chars([
-        {"name":"Hero1", "portrait":load("res://assets/…png"), "hp":30, "max_hp":30},
-        {"name":"Hero2", "portrait":load("res://assets/…png"), "hp":28, "max_hp":30}
-    ])
-    ui.update_enemy_chars([
-        {"name":"Goblin", "portrait":load("res://assets/…png"), "hp":15, "max_hp":15}
-    ])
-
-    # roba cartas iniciales
+    ui.update_player_chars(player_chars)
+    ui.update_enemy_chars(enemy_chars)
     for i in range(3):
         _draw_and_show()
 
 func _draw_and_show() -> void:
     var cd = deck.draw()
-    if cd.empty():
-        return
-    var card = CardScene.instantiate() as Node2D
-    if card.has_method("set_data"):
-        card.call("set_data", cd)
-    ui.add_card_to_hand(card)
+    if cd:
+        var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+        card.set_data(cd)
+        ui.add_card_to_hand(card)
 
-# Ejemplo de método al jugar carta
-func play_card(card_node: Node2D) -> void:
-    var cd : CardData = card_node.data
-    if energy < cd.cost:
-        return
-    energy -= cd.cost
-    ui.set_energy(energy)
-    # aquí resuelves effects: daño, cura, buffs…
-    card_node.queue_free()
+# Métodos auxiliares para personajes/enemigos
+func _load_char_defs(path: String) -> Dictionary:
+    var dict := {}
+    var file = FileAccess.open(path, FileAccess.READ)
+    if not file: return dict
+    var list = JSON.parse_string(file.get_as_text()).result
+    file.close()
+    for d in list:
+        var c = preload("res://scripts/CharacterData.gd").new()
+        c.id       = d.id
+        c.name     = d.name
+        c.portrait = load(d.portrait)
+        c.hp       = d.hp
+        c.max_hp   = d.max_hp
+        c.attack   = d.attack
+        c.defense  = d.defense
+        dict[c.id] = c
+    return dict
+
+func _load_enemy_decks(path: String) -> Dictionary:
+    var file = FileAccess.open(path, FileAccess.READ)
+    if not file: return {}
+    var res = JSON.parse_string(file.get_as_text()).result
+    file.close()
+    return res
+
+func _generate_roster(defs: Dictionary, min_count: int, max_count: int) -> Array:
+    var keys = defs.keys()
+    keys.shuffle()
+    var count = clamp(randi() % (max_count - min_count + 1) + min_count, 1, keys.size())
+    var roster := []
+    for i in range(count):
+        roster.append(defs[keys[i]])
+    return roster

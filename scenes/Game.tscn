@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://b2reu6uluh32d"]
+[gd_scene load_steps=9 format=3 uid="uid://b2reu6uluh32d"]
 
 [ext_resource type="Script" uid="uid://bk6pf0c3bpows" path="res://scripts/Game.gd" id="1_78awf"]
 [ext_resource type="PackedScene" uid="uid://bw3fx7aj0egrj" path="res://scenes/Hand.tscn" id="1_cpr0p"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://bwoiew0r86rrx" path="res://scripts/Deck.gd" id="5_kiw3p"]
 [ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="6_400sg"]
 [ext_resource type="PackedScene" uid="uid://bxdtb1ge7pk18" path="res://scenes/GameUI.tscn" id="7_kiw3p"]
+[ext_resource type="Script" uid="uid://bqlfutsd3n0a8" path="res://scripts/GameUI.gd" id="8_400sg"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_78awf")
@@ -21,6 +22,7 @@ script = ExtResource("5_kiw3p")
 script = ExtResource("6_400sg")
 
 [node name="GameUi" parent="." instance=ExtResource("7_kiw3p")]
+script = ExtResource("8_400sg")
 
 [node name="TurnPanel" type="HBoxContainer" parent="GameUi"]
 layout_mode = 0
@@ -165,3 +167,6 @@ offset_left = 249.0
 offset_top = 487.0
 offset_right = 913.0
 offset_bottom = 649.0
+
+[node name="CardsContainer" type="HFlowContainer" parent="GameUi/HandPanel"]
+layout_mode = 2
