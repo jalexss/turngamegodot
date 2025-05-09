@@ -39,7 +39,9 @@ func update_enemy_chars(chars: Array) -> void:
 			slot.visible = false
 
 func clear_hand() -> void:
-	hand_container.clear()
+	for child in hand_container.get_children():
+		hand_container.remove_child(child)
+		child.queue_free() # Importante para liberar la memoria de la carta
 
 func add_card_to_hand(card: Node2D) -> void:
 	hand_container.add_child(card)
