@@ -27,41 +27,14 @@ func _get_color(type: int) -> Color:
         _:                        return Color(0.8, 0.8, 0.8)
 
 func _make_color_texture(color: Color, size: Vector2) -> ImageTexture:
-    # var img = Image.new()
-    # Image.create(int(size.x), int(size.y), false, Image.FORMAT_RGBA8)
-    # # Image.create(img, int(size.x), int(size.y), false, Image.FORMAT_RGBA8)
-    # img.lock()
-    # for x in size.x:
-    #     for y in size.y:
-    #         img.set_pixel(x, y, color)
-    # img.unlock()
-    # var tex = ImageTexture.new()
-    # tex.create_from_image(img)
-    # return tex
-    # var img = Image.new()
-    # # Crear imagen en la instancia, no en la clase
-    # img.create(int(size.x), int(size.y), false, Image.FORMAT_RGBA8)
-    # img.lock()
-    # # Iterar con range()
-    # for x in range(int(size.x)):
-    # 	for y in range(int(size.y)):
-    # 		img.set_pixel(x, y, color)
-    # img.unlock()
-    # var tex = ImageTexture.new()
-    # tex.create_from_image(img)
-    # return tex
-
-    # Convierte a int antes de pasarlo al método estático
     var w := int(size.x)
     var h := int(size.y)
-    # Image.create es estática y retorna la Image
     var img: Image = Image.create(w, h, false, Image.FORMAT_RGBA8)
     img.lock()
     for x in range(w):
         for y in range(h):
             img.set_pixel(x, y, color)
     img.unlock()
-    # create_from_image es instancia en ImageTexture
-    var tex := ImageTexture.new()
-    tex.create_from_image(img)
+    # create_from_image es estático, llámalo en la clase
+    var tex := ImageTexture.create_from_image(img)
     return tex

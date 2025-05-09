@@ -10,7 +10,8 @@
     "defense": 4,
     "rate": 1,
     "role": "HEALER",
-    "deck_id": 1
+    "deck_id": 1,
+    "range": "common"
   },
   {
     "id": 2,
@@ -23,7 +24,8 @@
     "defense": 8,
     "rate": 1,
     "role": "TANK",
-    "deck_id": 1
+    "deck_id": 1,
+    "range": "epic"
   },
   {
     "id": 3,
@@ -36,7 +38,8 @@
     "defense": 6,
     "rate": 2,
     "role": "CARRY",
-    "deck_id": 1
+    "deck_id": 1,
+    "range": "boss"
   },
   {
     "id": 4,
@@ -49,7 +52,8 @@
     "defense": 5,
     "rate": 1,
     "role": "HEALER",
-    "deck_id": 1
+    "deck_id": 1,
+    "range": "common"
   },
   {
     "id": 5,
@@ -62,6 +66,7 @@
     "defense": 7,
     "rate": 1,
     "role": "TANK",
-    "deck_id": 1
+    "deck_id": 1,
+    "range": "epic"
   }
 ]
