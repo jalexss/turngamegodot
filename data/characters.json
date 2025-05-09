@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "name": "Character",
+    "description": "Un character genérico.",
+    "portrait": "res://assets/NoLicense/characters/V1.2/1.png",
+    "hp": 20,
+    "max_hp": 20,
+    "attack": 5,
+    "defense": 4,
+    "rate": 1,
+    "role": "HEALER"
+  },
+  {
+    "id": 2,
+    "name": "Character2",
+    "description": "Un character genérico.",
+    "portrait": "res://assets/NoLicense/characters/V1.2/2.png",
+    "hp": 25,
+    "max_hp": 25,
+    "attack": 3,
+    "defense": 8,
+    "rate": 1,
+    "role": "TANK"
+  },
+  {
+    "id": 3,
+    "name": "Character3",
+    "description": "Un character genérico.",
+    "portrait": "res://assets/NoLicense/characters/V1.2/3.png",
+    "hp": 15,
+    "max_hp": 15,
+    "attack": 9,
+    "defense": 6,
+    "rate": 2,
+    "role": "CARRY"
+  }
+]

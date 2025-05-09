@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://b2reu6uluh32d"]
+[gd_scene load_steps=8 format=3 uid="uid://b2reu6uluh32d"]
 
 [ext_resource type="Script" uid="uid://bk6pf0c3bpows" path="res://scripts/Game.gd" id="1_78awf"]
 [ext_resource type="PackedScene" uid="uid://bw3fx7aj0egrj" path="res://scenes/Hand.tscn" id="1_cpr0p"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://b8jntvryj1hox" path="res://scripts/Hand.gd" id="3_aug50"]
 [ext_resource type="Script" uid="uid://bwoiew0r86rrx" path="res://scripts/Deck.gd" id="5_kiw3p"]
 [ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="6_400sg"]
+[ext_resource type="PackedScene" uid="uid://bxdtb1ge7pk18" path="res://scenes/GameUI.tscn" id="7_kiw3p"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_78awf")
@@ -18,3 +19,149 @@ script = ExtResource("5_kiw3p")
 
 [node name="CardContainer" type="Node2D" parent="."]
 script = ExtResource("6_400sg")
+
+[node name="GameUi" parent="." instance=ExtResource("7_kiw3p")]
+
+[node name="TurnPanel" type="HBoxContainer" parent="GameUi"]
+layout_mode = 0
+offset_right = 277.0
+offset_bottom = 112.0
+
+[node name="TurnLabel" type="Label" parent="GameUi/TurnPanel"]
+layout_mode = 2
+text = "1"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="PlayerChars" type="HBoxContainer" parent="GameUi"]
+layout_mode = 0
+offset_left = 19.0
+offset_top = 156.0
+offset_right = 604.0
+offset_bottom = 468.0
+
+[node name="PlayerSlot1" type="VBoxContainer" parent="GameUi/PlayerChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/PlayerChars/PlayerSlot1"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/PlayerChars/PlayerSlot1"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/PlayerChars/PlayerSlot1"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="PlayerSlot2" type="VBoxContainer" parent="GameUi/PlayerChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/PlayerChars/PlayerSlot2"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/PlayerChars/PlayerSlot2"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/PlayerChars/PlayerSlot2"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="PlayerSlot3" type="VBoxContainer" parent="GameUi/PlayerChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/PlayerChars/PlayerSlot3"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/PlayerChars/PlayerSlot3"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/PlayerChars/PlayerSlot3"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemyChars" type="HBoxContainer" parent="GameUi"]
+layout_mode = 0
+offset_left = 915.0
+offset_top = 193.0
+offset_right = 955.0
+offset_bottom = 233.0
+
+[node name="EnemySlot1" type="VBoxContainer" parent="GameUi/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot1"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot1"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot1"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemySlot2" type="VBoxContainer" parent="GameUi/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot2"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot2"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot2"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemySlot3" type="VBoxContainer" parent="GameUi/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot3"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot3"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot3"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemySlot4" type="VBoxContainer" parent="GameUi/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot4"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot4"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot4"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemySlot5" type="VBoxContainer" parent="GameUi/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot5"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot5"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot5"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="HandPanel" type="HBoxContainer" parent="GameUi"]
+layout_mode = 0
+offset_left = 249.0
+offset_top = 487.0
+offset_right = 913.0
+offset_bottom = 649.0
