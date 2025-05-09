@@ -21,152 +21,163 @@ script = ExtResource("5_kiw3p")
 [node name="CardContainer" type="Node2D" parent="."]
 script = ExtResource("6_400sg")
 
-[node name="GameUi" parent="." instance=ExtResource("7_kiw3p")]
+[node name="GameUI" parent="." instance=ExtResource("7_kiw3p")]
 script = ExtResource("8_400sg")
 
-[node name="TurnPanel" type="HBoxContainer" parent="GameUi"]
+[node name="TurnPanel" type="HBoxContainer" parent="GameUI"]
 layout_mode = 0
 offset_right = 277.0
 offset_bottom = 112.0
 
-[node name="TurnLabel" type="Label" parent="GameUi/TurnPanel"]
+[node name="TurnLabel" type="Label" parent="GameUI/TurnPanel"]
 layout_mode = 2
 text = "1"
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="PlayerChars" type="HBoxContainer" parent="GameUi"]
+[node name="PlayerChars" type="HBoxContainer" parent="GameUI"]
 layout_mode = 0
 offset_left = 19.0
 offset_top = 156.0
 offset_right = 604.0
 offset_bottom = 468.0
 
-[node name="PlayerSlot1" type="VBoxContainer" parent="GameUi/PlayerChars"]
+[node name="PlayerSlot1" type="VBoxContainer" parent="GameUI/PlayerChars"]
 layout_mode = 2
 
-[node name="Portrait" type="TextureRect" parent="GameUi/PlayerChars/PlayerSlot1"]
+[node name="Portrait" type="TextureRect" parent="GameUI/PlayerChars/PlayerSlot1"]
 layout_mode = 2
 
-[node name="CharName" type="Label" parent="GameUi/PlayerChars/PlayerSlot1"]
+[node name="CharName" type="Label" parent="GameUI/PlayerChars/PlayerSlot1"]
 layout_mode = 2
 
-[node name="HPBar" type="ProgressBar" parent="GameUi/PlayerChars/PlayerSlot1"]
-layout_mode = 2
-max_value = 1.0
-value = 1.0
-
-[node name="PlayerSlot2" type="VBoxContainer" parent="GameUi/PlayerChars"]
-layout_mode = 2
-
-[node name="Portrait" type="TextureRect" parent="GameUi/PlayerChars/PlayerSlot2"]
-layout_mode = 2
-
-[node name="CharName" type="Label" parent="GameUi/PlayerChars/PlayerSlot2"]
-layout_mode = 2
-
-[node name="HPBar" type="ProgressBar" parent="GameUi/PlayerChars/PlayerSlot2"]
+[node name="HPBar" type="ProgressBar" parent="GameUI/PlayerChars/PlayerSlot1"]
 layout_mode = 2
 max_value = 1.0
 value = 1.0
 
-[node name="PlayerSlot3" type="VBoxContainer" parent="GameUi/PlayerChars"]
+[node name="PlayerSlot2" type="VBoxContainer" parent="GameUI/PlayerChars"]
 layout_mode = 2
 
-[node name="Portrait" type="TextureRect" parent="GameUi/PlayerChars/PlayerSlot3"]
+[node name="Portrait" type="TextureRect" parent="GameUI/PlayerChars/PlayerSlot2"]
 layout_mode = 2
 
-[node name="CharName" type="Label" parent="GameUi/PlayerChars/PlayerSlot3"]
+[node name="CharName" type="Label" parent="GameUI/PlayerChars/PlayerSlot2"]
 layout_mode = 2
 
-[node name="HPBar" type="ProgressBar" parent="GameUi/PlayerChars/PlayerSlot3"]
+[node name="HPBar" type="ProgressBar" parent="GameUI/PlayerChars/PlayerSlot2"]
 layout_mode = 2
 max_value = 1.0
 value = 1.0
 
-[node name="EnemyChars" type="HBoxContainer" parent="GameUi"]
+[node name="PlayerSlot3" type="VBoxContainer" parent="GameUI/PlayerChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUI/PlayerChars/PlayerSlot3"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUI/PlayerChars/PlayerSlot3"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUI/PlayerChars/PlayerSlot3"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemyChars" type="HBoxContainer" parent="GameUI"]
 layout_mode = 0
 offset_left = 915.0
 offset_top = 193.0
 offset_right = 955.0
 offset_bottom = 233.0
 
-[node name="EnemySlot1" type="VBoxContainer" parent="GameUi/EnemyChars"]
+[node name="EnemySlot1" type="VBoxContainer" parent="GameUI/EnemyChars"]
 layout_mode = 2
 
-[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot1"]
+[node name="Portrait" type="TextureRect" parent="GameUI/EnemyChars/EnemySlot1"]
 layout_mode = 2
 
-[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot1"]
+[node name="CharName" type="Label" parent="GameUI/EnemyChars/EnemySlot1"]
 layout_mode = 2
 
-[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot1"]
-layout_mode = 2
-max_value = 1.0
-value = 1.0
-
-[node name="EnemySlot2" type="VBoxContainer" parent="GameUi/EnemyChars"]
-layout_mode = 2
-
-[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot2"]
-layout_mode = 2
-
-[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot2"]
-layout_mode = 2
-
-[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot2"]
+[node name="HPBar" type="ProgressBar" parent="GameUI/EnemyChars/EnemySlot1"]
 layout_mode = 2
 max_value = 1.0
 value = 1.0
 
-[node name="EnemySlot3" type="VBoxContainer" parent="GameUi/EnemyChars"]
+[node name="EnemySlot2" type="VBoxContainer" parent="GameUI/EnemyChars"]
 layout_mode = 2
 
-[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot3"]
+[node name="Portrait" type="TextureRect" parent="GameUI/EnemyChars/EnemySlot2"]
 layout_mode = 2
 
-[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot3"]
+[node name="CharName" type="Label" parent="GameUI/EnemyChars/EnemySlot2"]
 layout_mode = 2
 
-[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot3"]
-layout_mode = 2
-max_value = 1.0
-value = 1.0
-
-[node name="EnemySlot4" type="VBoxContainer" parent="GameUi/EnemyChars"]
-layout_mode = 2
-
-[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot4"]
-layout_mode = 2
-
-[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot4"]
-layout_mode = 2
-
-[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot4"]
+[node name="HPBar" type="ProgressBar" parent="GameUI/EnemyChars/EnemySlot2"]
 layout_mode = 2
 max_value = 1.0
 value = 1.0
 
-[node name="EnemySlot5" type="VBoxContainer" parent="GameUi/EnemyChars"]
+[node name="EnemySlot3" type="VBoxContainer" parent="GameUI/EnemyChars"]
 layout_mode = 2
 
-[node name="Portrait" type="TextureRect" parent="GameUi/EnemyChars/EnemySlot5"]
+[node name="Portrait" type="TextureRect" parent="GameUI/EnemyChars/EnemySlot3"]
 layout_mode = 2
 
-[node name="CharName" type="Label" parent="GameUi/EnemyChars/EnemySlot5"]
+[node name="CharName" type="Label" parent="GameUI/EnemyChars/EnemySlot3"]
 layout_mode = 2
 
-[node name="HPBar" type="ProgressBar" parent="GameUi/EnemyChars/EnemySlot5"]
+[node name="HPBar" type="ProgressBar" parent="GameUI/EnemyChars/EnemySlot3"]
 layout_mode = 2
 max_value = 1.0
 value = 1.0
 
-[node name="HandPanel" type="HBoxContainer" parent="GameUi"]
+[node name="EnemySlot4" type="VBoxContainer" parent="GameUI/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUI/EnemyChars/EnemySlot4"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUI/EnemyChars/EnemySlot4"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUI/EnemyChars/EnemySlot4"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="EnemySlot5" type="VBoxContainer" parent="GameUI/EnemyChars"]
+layout_mode = 2
+
+[node name="Portrait" type="TextureRect" parent="GameUI/EnemyChars/EnemySlot5"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="GameUI/EnemyChars/EnemySlot5"]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="GameUI/EnemyChars/EnemySlot5"]
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+
+[node name="HandPanel" type="HBoxContainer" parent="GameUI"]
 layout_mode = 0
 offset_left = 249.0
 offset_top = 487.0
 offset_right = 913.0
 offset_bottom = 649.0
 
-[node name="CardsContainer" type="HFlowContainer" parent="GameUi/HandPanel"]
+[node name="CardsContainer" type="HFlowContainer" parent="GameUI/HandPanel"]
 layout_mode = 2
+
+[node name="EnergyPanel" type="HBoxContainer" parent="GameUI"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 512.0
+offset_right = 52.0
+offset_bottom = 552.0
+
+[node name="EnergyLabel" type="Label" parent="GameUI/EnergyPanel"]
+layout_mode = 2
+text = "0"
