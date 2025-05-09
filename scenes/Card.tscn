@@ -4,3 +4,43 @@
 
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_yiag5")
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = 28.0
+offset_top = 46.0
+offset_right = 277.0
+offset_bottom = 78.0
+text = "NameLabel"
+
+[node name="CostLabel" type="Label" parent="."]
+offset_left = 25.0
+offset_top = 66.0
+offset_right = 274.0
+offset_bottom = 98.0
+text = "CostLabel"
+
+[node name="PowerLabel" type="Label" parent="."]
+offset_left = 19.0
+offset_top = 88.0
+offset_right = 268.0
+offset_bottom = 120.0
+text = "PowerLabel"
+
+[node name="DescriptionLabel" type="Label" parent="."]
+offset_left = 19.0
+offset_top = 115.0
+offset_right = 273.0
+offset_bottom = 138.0
+text = "DescriptionLabel"
+
+[node name="Artwork" type="TextureRect" parent="."]
+offset_left = 141.0
+offset_top = -1.0
+offset_right = 181.0
+offset_bottom = 39.0
+
+[node name="Background" type="TextureRect" parent="."]
+offset_left = 231.0
+offset_top = 104.0
+offset_right = 351.0
+offset_bottom = 162.0
