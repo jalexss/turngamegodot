@@ -7,3 +7,50 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="PlayerChars" type="HBoxContainer" parent="."]
+offset_left = 85.0
+offset_top = 340.0
+offset_right = 670.0
+offset_bottom = 652.0
+
+[node name="EnemyChars" type="HBoxContainer" parent="."]
+offset_left = 1244.0
+offset_top = 360.0
+offset_right = 1850.0
+offset_bottom = 752.0
+
+[node name="MainVBox" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 854.0
+offset_right = 1925.0
+offset_bottom = 1073.0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MainVBox"]
+layout_mode = 2
+
+[node name="TurnPanel" type="HBoxContainer" parent="MainVBox/HBoxContainer"]
+layout_mode = 2
+
+[node name="TurnLabel" type="Label" parent="MainVBox/HBoxContainer/TurnPanel"]
+layout_mode = 2
+text = "1"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="EnergyPanel" type="HBoxContainer" parent="MainVBox/HBoxContainer"]
+layout_mode = 2
+
+[node name="EnergyLabel" type="Label" parent="MainVBox/HBoxContainer/EnergyPanel"]
+layout_mode = 2
+text = "0"
+
+[node name="HandPanel" type="PanelContainer" parent="MainVBox"]
+layout_mode = 2
+
+[node name="CardsContainer" type="HBoxContainer" parent="MainVBox/HandPanel"]
+layout_mode = 2
+
+[node name="BattleAreaPlaceholder" type="PanelContainer" parent="MainVBox"]
+layout_mode = 2

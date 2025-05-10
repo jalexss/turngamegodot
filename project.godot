@@ -15,6 +15,19 @@ run/main_scene="uid://b2reu6uluh32d"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/initial_position=Vector2i(640, 360)
+window/stretch/mode="canvas_items"
+window/stretch/scale_mode="integer"
+
 [dotnet]
 
 project/assembly_name="TurnGameGodot"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+2d/snap/snap_2d_transforms_to_pixel=true

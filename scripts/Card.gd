@@ -4,14 +4,21 @@ var data: CardData
 
 func set_data(d: CardData) -> void:
 	data = d
-	$NameLabel.text = data.name
-	$CostLabel.text = str(data.cost)
-	# Artwork
+	$MainVBox/NameLabel.text = data.name 
+	$MainVBox/CostLabel.text = str(data.cost)
+	if $MainVBox.has_node("DescriptionLabel"): 
+		($MainVBox/DescriptionLabel as Label).text = data.description
+
+	if $MainVBox.has_node("PowerLabel"):
+		($MainVBox/PowerLabel as Label).text = str(data.power) 
+
+	# Artwork (dentro de MainVBox)
+	var artwork_node = $MainVBox/Artwork as TextureRect
 	if data.artwork:
-		$Artwork.texture = data.artwork
+		artwork_node.texture = data.artwork
 	else:
-		$Artwork.texture = _make_color_texture(_get_color(data.card_type), Vector2(128,128))
-	# Background
+		artwork_node.texture = _make_color_texture(_get_color(data.card_type), Vector2(128,128))
+	
 	if data.background:
 		$Background.texture = data.background
 	else:
@@ -33,6 +40,5 @@ func _make_color_texture(color: Color, size: Vector2) -> ImageTexture:
 	for x in range(w):
 		for y in range(h):
 			img.set_pixel(x, y, color)
-	# create_from_image es estático, llámalo en la clase
 	var tex := ImageTexture.create_from_image(img)
 	return tex
