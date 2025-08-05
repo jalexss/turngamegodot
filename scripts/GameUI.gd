@@ -87,6 +87,13 @@ func _initialize_character_slots(container: HBoxContainer, slots_array: Array, c
 	slots_array.clear()
 	for i in range(count):
 		var slot_instance = CharacterSlotScene.instantiate()
+
+		# Conectar la señal del slot a una función del nodo Game
+		# Asumimos que GameUI es hijo de Game
+		var game_node = get_parent()
+		if game_node and game_node.has_method("_on_character_selected"):
+			slot_instance.character_clicked.connect(game_node._on_character_selected)
+
 		container.add_child(slot_instance)
 		slots_array.append(slot_instance)
 		slot_instance.visible = false

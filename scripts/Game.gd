@@ -199,3 +199,10 @@ func _get_player_available_cards() -> Array:
 	
 	expanded_deck.shuffle()
 	return expanded_deck
+
+func _on_character_selected(char_data: CharacterData):
+	print("Personaje seleccionado en Game.gd: ", char_data.name)
+	# --- AQUÍ VA TU LÓGICA ---
+  # Por ejemplo, si tienes una carta seleccionada, aplicarle el efecto a este personaje.
+  # if current_selected_card:
+  #     play_card_on_target(current_selected_card, char_data)
