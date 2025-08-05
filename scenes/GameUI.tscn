@@ -1,4 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bxdtb1ge7pk18"]
+[gd_scene load_steps=4 format=3 uid="uid://bxdtb1ge7pk18"]
+
+[ext_resource type="Script" uid="uid://bqlfutsd3n0a8" path="res://scripts/GameUI.gd" id="1_7qg0v"]
+[ext_resource type="PackedScene" uid="uid://bw3fx7aj0egrj" path="res://scenes/Hand.tscn" id="1_jkspe"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2n352"]
 
@@ -9,23 +12,24 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_7qg0v")
 
 [node name="PlayerChars" type="HBoxContainer" parent="."]
-custom_minimum_size = Vector2(750, 250)
+custom_minimum_size = Vector2(600, 250)
 layout_mode = 0
-offset_left = 85.0
-offset_top = 340.0
-offset_right = 670.0
-offset_bottom = 652.0
+offset_left = 100.0
+offset_top = 275.0
+offset_right = 700.0
+offset_bottom = 525.0
 theme_override_constants/separation = 200
 
 [node name="EnemyChars" type="HBoxContainer" parent="."]
-custom_minimum_size = Vector2(750, 250)
+custom_minimum_size = Vector2(600, 250)
 layout_mode = 0
-offset_left = 1146.0
-offset_top = 326.0
-offset_right = 1896.0
-offset_bottom = 638.0
+offset_left = 1200.0
+offset_top = 275.0
+offset_right = 1800.0
+offset_bottom = 525.0
 theme_override_constants/separation = 200
 
 [node name="MainVBox" type="VBoxContainer" parent="."]
@@ -34,7 +38,7 @@ layout_mode = 0
 offset_left = 92.0
 offset_top = 746.0
 offset_right = 1803.0
-offset_bottom = 1079.0
+offset_bottom = 819.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MainVBox"]
 custom_minimum_size = Vector2(100, 25)
@@ -68,4 +72,6 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_2n352")
 [node name="BattleAreaPlaceholder" type="PanelContainer" parent="MainVBox"]
 layout_mode = 2
 
-[node name="CardsContainer" type="Node2D" parent="."]
+[node name="HandContainer" parent="." instance=ExtResource("1_jkspe")]
+position = Vector2(950, 950)
+spread_angle_degrees = 80.0
