@@ -65,11 +65,7 @@ custom_minimum_size = Vector2(1000, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_2n352")
 
-[node name="CardsContainer" type="HBoxContainer" parent="MainVBox/HandPanel"]
-custom_minimum_size = Vector2(100, 200)
-layout_mode = 2
-theme_override_constants/separation = 300
-alignment = 1
-
 [node name="BattleAreaPlaceholder" type="PanelContainer" parent="MainVBox"]
 layout_mode = 2
+
+[node name="CardsContainer" type="Node2D" parent="."]

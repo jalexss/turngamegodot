@@ -1,0 +1,9 @@
+{
+  "id": 2,
+  "name": "Deck Agresivo",
+  "description": "Enfocado en ataque rápido y daño",
+  "deck": [
+    0, 0, 0, 4, 4, 4, 4, 6, 6, 6, 3, 3, 1, 1, 2,
+    0, 4, 6, 3, 4, 0, 6, 4, 3, 1
+  ]
+}

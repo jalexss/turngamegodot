@@ -1,7 +1,10 @@
 extends Node2D
 
 const ENEMY_DECKS_PATH = "res://data/enemy_decks.json"
+const PLAYER_DECK_PATH = "res://data/player_deck.json"
 
+# Opciones de deck para el jugador
+@export_enum("Automático", "Balanceado", "Agresivo", "Defensivo", "Inicial") var player_deck_type: int = 0
 @export var testing_deck_id: int = -1  # si > 0 fuerza ese deck en vez de random
 @onready var deck = $Deck
 @onready var ui   = $GameUI as Control
@@ -21,33 +24,13 @@ func _ready() -> void:
 	player_chars = _generate_roster(char_defs, 1, 3)
 	enemy_chars  = _generate_roster(enemy_defs, 1, 5) # Ajusta el rango según tus necesidades
 
-	# Cargar y seleccionar deck enemigo
-	var all_enemy_decks: Array = _load_enemy_decks(ENEMY_DECKS_PATH)
-
-	if all_enemy_decks.is_empty():
-		push_error("Game.gd: No se cargaron mazos de enemigos desde %s. No se puede seleccionar un mazo." % ENEMY_DECKS_PATH)
-		deck.load_deck_from_ids([]) # Carga un mazo vacío como fallback usando la nueva función
+	# Cargar deck del jugador
+	var player_card_ids: Array = _get_player_deck()
+	if player_card_ids.is_empty():
+		push_error("Game.gd: No se pudo cargar el deck del jugador.")
+		deck.load_deck_from_ids([])
 	else:
-		var chosen_deck_definition: Dictionary
-		if testing_deck_id > 0:
-			chosen_deck_definition = _find_deck_by_id(all_enemy_decks, testing_deck_id)
-			if chosen_deck_definition.is_empty(): # _find_deck_by_id devuelve {} si no lo encuentra
-				push_warning("Game.gd: Deck de prueba ID %d no encontrado. Seleccionando uno aleatorio." % testing_deck_id)
-				chosen_deck_definition = all_enemy_decks[randi() % all_enemy_decks.size()]
-		else:
-			chosen_deck_definition = all_enemy_decks[randi() % all_enemy_decks.size()]
-
-		if not chosen_deck_definition.is_empty() and chosen_deck_definition.has("deck"):
-			var enemy_card_ids: Array = chosen_deck_definition.deck
-			if enemy_card_ids is Array: # Buena práctica verificar el tipo
-				# Aquí usamos la nueva función que acepta un Array de IDs directamente
-				deck.load_deck_from_ids(enemy_card_ids) 
-			else:
-				push_error("Game.gd: chosen_deck_definition.deck no es un Array. Tipo recibido: %s" % typeof(enemy_card_ids))
-				deck.load_deck_from_ids([]) # Fallback
-		else:
-			push_error("Game.gd: La definición del mazo enemigo seleccionado es inválida o está vacía.")
-			deck.load_deck_from_ids([]) # Carga un mazo vacío como fallback
+		deck.load_deck_from_ids(player_card_ids)
 	
 	_start_turn()
 
@@ -59,7 +42,7 @@ func _start_turn() -> void:
 	ui.clear_hand()
 	ui.update_player_chars(player_chars)
 	ui.update_enemy_chars(enemy_chars)
-	for i in range(3):
+	for i in range(4):
 		_draw_and_show()
 
 func _draw_and_show() -> void:
@@ -170,3 +153,49 @@ func _find_deck_by_id(deck_list: Array, id_to_find: int) -> Dictionary:
 			return deck_data
 
 	return {} # Devuelve diccionario vacío si no se encuentra
+
+func _get_player_deck() -> Array:
+	match player_deck_type:
+		1: # Balanceado
+			return _load_deck_from_file("res://data/player_deck_balanced.json")
+		2: # Agresivo  
+			return _load_deck_from_file("res://data/player_deck_aggressive.json")
+		3: # Defensivo
+			return _load_deck_from_file("res://data/player_deck_defensive.json")
+		4: # Inicial
+			return _load_deck_from_file("res://data/player_deck_starter.json")
+		_: # Automático (0)
+			return _get_player_available_cards()
+
+func _load_deck_from_file(file_path: String) -> Array:
+	var deck_data = _load_json(file_path)
+	if deck_data is Dictionary and deck_data.has("deck"):
+		return deck_data.get("deck", [])
+	else:
+		push_warning("Game.gd: Error cargando deck desde %s" % file_path)
+		return []
+
+func _get_player_available_cards() -> Array:
+	var all_cards_data = _load_json("res://data/cards.json")
+	var player_cards: Array = []
+	
+	if not all_cards_data is Array:
+		push_error("Game.gd: Error al cargar cartas desde cards.json")
+		return player_cards
+	
+	# Filtrar cartas disponibles para el jugador
+	for card_data in all_cards_data:
+		if card_data is Dictionary and card_data.has("available_to") and card_data.has("id"):
+			var available_to = card_data.get("available_to", [])
+			if available_to is Array and "player" in available_to:
+				player_cards.append(card_data.get("id"))
+	
+	# Crear una lista con múltiples copias para tener suficientes cartas
+	var expanded_deck: Array = []
+	for card_id in player_cards:
+		# Añadir 3 copias de cada carta disponible para el jugador
+		for i in range(3):
+			expanded_deck.append(card_id)
+	
+	expanded_deck.shuffle()
+	return expanded_deck
