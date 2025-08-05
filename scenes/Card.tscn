@@ -2,35 +2,65 @@
 
 [ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="1_yiag5"]
 
-[node name="Node2D" type="Node2D"]
+[node name="PanelContainer" type="Node2D"]
 script = ExtResource("1_yiag5")
 
 [node name="Background" type="TextureRect" parent="."]
-offset_left = 4.0
-offset_right = 286.0
-offset_bottom = 286.0
+custom_minimum_size = Vector2(200, 100)
+offset_right = 200.0
+offset_bottom = 254.0
 
-[node name="MainVBox" type="VBoxContainer" parent="."]
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 286.0
-offset_bottom = 416.0
+[node name="MainVBox" type="Control" parent="."]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 200.0
+offset_bottom = 254.0
 
 [node name="Artwork" type="TextureRect" parent="MainVBox"]
+custom_minimum_size = Vector2(120, 120)
 layout_mode = 2
+offset_left = 1.0
+offset_right = 201.0
+offset_bottom = 120.0
 
 [node name="NameLabel" type="Label" parent="MainVBox"]
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+offset_left = 1.0
+offset_top = 4.0
+offset_right = 201.0
+offset_bottom = 27.0
 text = "NameLabel"
+horizontal_alignment = 1
 
 [node name="DescriptionLabel" type="Label" parent="MainVBox"]
 layout_mode = 2
+offset_left = 1.0
+offset_top = 116.0
+offset_right = 201.0
+offset_bottom = 236.0
 text = "DescriptionLabel"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="PowerLabel" type="Label" parent="MainVBox"]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+offset_top = 233.0
+offset_right = 100.0
+offset_bottom = 256.0
 text = "PowerLabel"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="CostLabel" type="Label" parent="MainVBox"]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+offset_left = 103.0
+offset_top = 232.0
+offset_right = 203.0
+offset_bottom = 255.0
 text = "CostLabel"
+horizontal_alignment = 1
+vertical_alignment = 1

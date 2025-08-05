@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://bxdtb1ge7pk18"]
+[gd_scene load_steps=2 format=3 uid="uid://bxdtb1ge7pk18"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2n352"]
 
 [node name="GameUi" type="Control"]
 layout_mode = 3
@@ -9,29 +11,39 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PlayerChars" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(750, 250)
+layout_mode = 0
 offset_left = 85.0
 offset_top = 340.0
 offset_right = 670.0
 offset_bottom = 652.0
+theme_override_constants/separation = 200
 
 [node name="EnemyChars" type="HBoxContainer" parent="."]
-offset_left = 1244.0
-offset_top = 360.0
-offset_right = 1850.0
-offset_bottom = 752.0
+custom_minimum_size = Vector2(750, 250)
+layout_mode = 0
+offset_left = 1146.0
+offset_top = 326.0
+offset_right = 1896.0
+offset_bottom = 638.0
+theme_override_constants/separation = 200
 
 [node name="MainVBox" type="VBoxContainer" parent="."]
+custom_minimum_size = Vector2(1000, 0)
 layout_mode = 0
-offset_left = 6.0
-offset_top = 854.0
-offset_right = 1925.0
-offset_bottom = 1073.0
+offset_left = 92.0
+offset_top = 746.0
+offset_right = 1803.0
+offset_bottom = 1079.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MainVBox"]
+custom_minimum_size = Vector2(100, 25)
 layout_mode = 2
 
 [node name="TurnPanel" type="HBoxContainer" parent="MainVBox/HBoxContainer"]
+custom_minimum_size = Vector2(40, 20)
 layout_mode = 2
+alignment = 1
 
 [node name="TurnLabel" type="Label" parent="MainVBox/HBoxContainer/TurnPanel"]
 layout_mode = 2
@@ -40,17 +52,24 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="EnergyPanel" type="HBoxContainer" parent="MainVBox/HBoxContainer"]
+custom_minimum_size = Vector2(50, 20)
 layout_mode = 2
+alignment = 1
 
 [node name="EnergyLabel" type="Label" parent="MainVBox/HBoxContainer/EnergyPanel"]
 layout_mode = 2
 text = "0"
 
 [node name="HandPanel" type="PanelContainer" parent="MainVBox"]
+custom_minimum_size = Vector2(1000, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_2n352")
 
 [node name="CardsContainer" type="HBoxContainer" parent="MainVBox/HandPanel"]
+custom_minimum_size = Vector2(100, 200)
 layout_mode = 2
+theme_override_constants/separation = 300
+alignment = 1
 
 [node name="BattleAreaPlaceholder" type="PanelContainer" parent="MainVBox"]
 layout_mode = 2
