@@ -17,6 +17,7 @@ var hand_cards: Array = [] # Array para guardar las cartas de la mano
 var hand_center_position: Vector2 = Vector2(600, 200) # Centro de la media esfera
 var hand_radius: float = 450.0 # Radio de la media esfera (aumentado para más dispersión)
 var hovered_card: Node2D = null # Carta actualmente con hover
+var card_original_scales: Dictionary = {} # Guardar escalas originales para cada carta
 # Ángulo máximo de separación en grados (total)
 var max_spread_angle: float = 120.0  # Más dispersión para mejor separación
 var max_cards_visible: int = 10       # Máximo de cartas visibles
@@ -25,6 +26,9 @@ const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn"
 
 # Variables para detectar mouse manualmente
 var last_hovered_card: Node2D = null
+
+# Debug visual (opcional)
+@export var debug_hover_areas: bool = false  # Activar en el inspector para ver áreas
 
 func _ready() -> void:
 	if not player_slots_container:
@@ -58,6 +62,9 @@ func _handle_mouse_motion(mouse_pos: Vector2) -> void:
 		# Aplicar hover a la nueva carta
 		if current_top_card:
 			_apply_hover_effect(current_top_card, true)
+			# Debug info si está activo
+			if debug_hover_areas:
+				_debug_print_hover_info(current_top_card, mouse_pos)
 		
 		last_hovered_card = current_top_card
 
@@ -153,6 +160,7 @@ func clear_hand() -> void:
 	hand_cards.clear()
 	hovered_card = null
 	last_hovered_card = null
+	card_original_scales.clear()
 
 func add_card_to_hand(card: Node2D) -> void:
 	if not hand_container:
@@ -224,7 +232,11 @@ func _arrange_cards_in_hemisphere() -> void:
 		
 		# Añadir un pequeño efecto de escala para dar profundidad
 		var scale_factor = 0.9 + (cos(angle_rad) * 0.1) # Las cartas del centro ligeramente más grandes
-		tween.parallel().tween_property(card, "scale", Vector2(scale_factor, scale_factor), 0.3)
+		var final_scale = Vector2(scale_factor, scale_factor)
+		tween.parallel().tween_property(card, "scale", final_scale, 0.3)
+		
+		# Guardar la escala original de esta carta para el hover
+		card_original_scales[card] = final_scale
 		
 		# Actualizar z-index para prioridad de hover (cartas del centro más arriba)
 		card.z_index = 100 + int((cos(angle_rad) + 1.0) * 50) + i
@@ -245,15 +257,38 @@ func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
 			# Convertir posición global a posición local del contenedor
 			var local_pos = hand_container.to_local(global_pos)
 			
-			# Verificar si el cursor está sobre esta carta
-			# Cartas tienen tamaño 200x254 (según Card.tscn)
-			var card_rect = Rect2(card.position - Vector2(100, 127), Vector2(200, 254))
+			# Obtener el tamaño real de la carta considerando la escala
+			var card_scale = card.scale
+			var base_size = Vector2(200, 254)  # Tamaño base de la carta
+			var scaled_size = base_size * card_scale
+			
+			# El centro de la carta está en card.position, crear rectángulo centrado
+			var card_rect = Rect2(
+				card.position - scaled_size / 2.0,  # Posición superior-izquierda
+				scaled_size  # Tamaño del rectángulo
+			)
+			
 			if card_rect.has_point(local_pos):
 				if card.z_index > highest_z_index:
 					highest_z_index = card.z_index
 					top_card = card
 	
 	return top_card
+
+# Debug visual simplificado - muestra info en consola
+func _debug_print_hover_info(card: Node2D, mouse_pos: Vector2) -> void:
+	if debug_hover_areas and card:
+		var local_pos = hand_container.to_local(mouse_pos)
+		var card_scale = card.scale
+		var base_size = Vector2(200, 254)
+		var scaled_size = base_size * card_scale
+		var card_rect = Rect2(card.position - scaled_size / 2.0, scaled_size)
+		
+		print("Debug Hover - Carta: ", card.data.name if card.data else "sin data")
+		print("  Posición mouse local: ", local_pos)
+		print("  Rectángulo carta: ", card_rect)
+		print("  Escala carta: ", card_scale)
+		print("  ¿Mouse dentro?: ", card_rect.has_point(local_pos))
 
 # Funciones de hover simplificadas (ahora manejadas por _input)
 
@@ -278,13 +313,26 @@ func _apply_hover_effect(card: Node2D, is_hovered: bool) -> void:
 
 # Efectos visuales de hover
 func _apply_hover_visual(card: Node2D) -> void:
+	if not card_original_scales.has(card):
+		# Si no tenemos la escala original, usar la actual como base
+		card_original_scales[card] = card.scale
+	
+	var original_scale = card_original_scales[card]
+	var hover_scale = original_scale * 1.1
+	
 	var tween = create_tween()
-	tween.parallel().tween_property(card, "scale", card.scale * 1.1, 0.15)
+	tween.parallel().tween_property(card, "scale", hover_scale, 0.15)
 	tween.parallel().tween_property(card, "modulate", Color(1.2, 1.2, 1.0), 0.15)
 	card.z_index += 1000  # Elevar temporalmente por encima de todas
 
 func _remove_hover_visual(card: Node2D) -> void:
+	if not card_original_scales.has(card):
+		# Fallback: usar escala actual dividida por 1.1
+		card_original_scales[card] = card.scale / 1.1
+	
+	var original_scale = card_original_scales[card]
+	
 	var tween = create_tween()
-	tween.parallel().tween_property(card, "scale", card.scale / 1.1, 0.15)
+	tween.parallel().tween_property(card, "scale", original_scale, 0.15)
 	tween.parallel().tween_property(card, "modulate", Color.WHITE, 0.15)
 	card.z_index -= 1000  # Restaurar z-index original
