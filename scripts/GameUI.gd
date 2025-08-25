@@ -8,6 +8,7 @@ extends Control
 @onready var enemy_slots_container  = $EnemyChars as HBoxContainer
 @onready var hand_container = $HandContainer as HandContainer
 @onready var test_button = $TestButton as Button
+@onready var discard_button = $DiscardButton as Button
 
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
@@ -24,6 +25,13 @@ var targeting_state: TargetingState = TargetingState.NONE
 var selected_card: Node2D = null
 var hovered_target: Control = null  # Personaje bajo el cursor durante targeting
 
+# Sistema de descarte
+var discard_pile: Array[CardData] = []
+
+# Sistema de drag & drop
+var dragged_card: Node2D = null
+var drag_start_position: Vector2 = Vector2.ZERO
+
 const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn")
 
 # --- FUNCIONES DEL MOTOR ---
@@ -39,6 +47,13 @@ func _ready() -> void:
 	if test_button:
 		test_button.pressed.connect(_on_test_button_pressed)
 		test_button.text = "Añadir Carta (Test)"
+	
+	# Configurar botón de descarte
+	if discard_button:
+		_update_discard_button_display()
+	
+	# Crear nodos faltantes si es necesario
+	_create_missing_nodes()
 
 func _create_missing_nodes() -> void:
 	# Crear HandContainer si no existe
@@ -64,14 +79,31 @@ func _create_missing_nodes() -> void:
 		# Conectar la señal aquí también
 		test_button.pressed.connect(_on_test_button_pressed)
 		print("DEBUG: TestButton creado y conectado")
+	
+	# Crear DiscardButton si no existe
+	if not discard_button:
+		print("DEBUG: Creando DiscardButton automáticamente...")
+		var new_discard_button = Button.new()
+		new_discard_button.name = "DiscardButton"
+		new_discard_button.text = "0"
+		new_discard_button.position = Vector2(1700, 50)
+		new_discard_button.size = Vector2(150, 100)
+		add_child(new_discard_button)
+		discard_button = new_discard_button
+		_update_discard_button_display()
+		print("DEBUG: DiscardButton creado")
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_handle_mouse_motion(event.global_position)
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_handle_mouse_click(event.global_position)
-		# No consumir el evento para que los CharacterSlots también lo reciban
-		# get_viewport().set_input_as_handled() # Comentado para permitir propagación
+		# Manejar drag durante movimiento
+		if dragged_card and dragged_card.has_method("update_drag"):
+			dragged_card.update_drag(event.global_position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_handle_mouse_press(event.global_position)
+		else:
+			_handle_mouse_release(event.global_position)
 
 # --- MANEJO DE INPUT Y HOVER ---
 func _handle_mouse_motion(mouse_pos: Vector2) -> void:
@@ -91,16 +123,13 @@ func _handle_mouse_motion(mouse_pos: Vector2) -> void:
 			
 			last_hovered_card = current_top_card
 
-func _handle_mouse_click(mouse_pos: Vector2) -> void:
-	print("DEBUG: Click detectado en posición: ", mouse_pos)
-	
+func _handle_mouse_press(mouse_pos: Vector2) -> void:
+	"""Maneja cuando se presiona el botón del mouse"""
 	if targeting_state == TargetingState.WAITING_FOR_TARGET:
 		# Durante targeting, verificar si se clickeó un personaje
 		var clicked_character_slot = _get_character_slot_at_position(mouse_pos)
-		print("DEBUG: Character slot clickeado: ", clicked_character_slot)
 		
 		if clicked_character_slot and clicked_character_slot.character_data:
-			print("DEBUG: Enviando character_data a _on_character_targeted: ", clicked_character_slot.character_data.name)
 			_on_character_targeted(clicked_character_slot.character_data)
 			return
 		
@@ -113,10 +142,55 @@ func _handle_mouse_click(mouse_pos: Vector2) -> void:
 	# Comportamiento normal cuando no hay targeting
 	var clicked_card = _get_top_card_at_position(mouse_pos)
 	if clicked_card and hand_container:
-		# Hacer focus Y activar targeting inmediatamente
-		hand_container.focus_card(clicked_card)
-		_start_targeting(clicked_card)
-		print("🎯 Targeting activado para: ", clicked_card.data.name if clicked_card.data else "Sin datos")
+		# Iniciar drag
+		_start_card_drag(clicked_card, mouse_pos)
+
+func _handle_mouse_release(mouse_pos: Vector2) -> void:
+	"""Maneja cuando se suelta el botón del mouse"""
+	if dragged_card:
+		_end_card_drag(mouse_pos)
+	
+# --- SISTEMA DE DRAG & DROP ---
+func _start_card_drag(card: Node2D, mouse_pos: Vector2) -> void:
+	"""Inicia el drag de una carta"""
+	dragged_card = card
+	drag_start_position = card.global_position
+	
+	if card.has_method("start_drag"):
+		card.start_drag(mouse_pos)
+	
+	print("🖱️ Iniciando drag de carta: ", card.data.name if card.data else "Sin datos")
+
+func _end_card_drag(mouse_pos: Vector2) -> void:
+	"""Termina el drag de una carta"""
+	if not dragged_card:
+		return
+	
+	var dropped_on_discard = _is_position_over_discard_button(mouse_pos)
+	
+	if dropped_on_discard:
+		# Descartar carta
+		print("🗑️ Carta descartada por drag & drop")
+		_discard_card(dragged_card)
+	else:
+		# Activar targeting si no se descartó
+		hand_container.focus_card(dragged_card)
+		_start_targeting(dragged_card)
+		
+		# Restaurar posición original si no se descartó
+		if dragged_card.has_method("end_drag"):
+			dragged_card.end_drag()
+		dragged_card.global_position = drag_start_position
+	
+	dragged_card = null
+
+func _is_position_over_discard_button(pos: Vector2) -> bool:
+	"""Verifica si la posición está sobre el botón de descarte"""
+	if not discard_button:
+		return false
+	
+	var button_rect = discard_button.get_global_rect()
+	return button_rect.has_point(pos)
 
 # --- GESTIÓN DE LA MANO (DELEGADA) ---
 func clear_hand() -> void:
@@ -205,7 +279,6 @@ func _start_targeting(card: Node2D) -> void:
 	
 	# Cambiar cursor
 	Input.set_default_cursor_shape(Input.CURSOR_CROSS)
-	print("DEBUG: Cursor cambiado a CROSS")
 	
 	# Resaltar targets válidos
 	_highlight_valid_targets(valid_targets)
@@ -219,7 +292,6 @@ func _cancel_targeting() -> void:
 	
 	# Restaurar cursor normal
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
-	print("DEBUG: Cursor restaurado a ARROW")
 	
 	# Quitar resaltado de todos los personajes
 	_clear_target_highlights()
@@ -272,7 +344,7 @@ func _handle_targeting_hover(mouse_pos: Vector2) -> void:
 			var valid_targets = _get_valid_targets_for_card(selected_card.data)
 			if current_target in valid_targets:
 				current_target.set_targeting_hover(true)
-				print("🎯 Apuntando a: ", current_target.character_data.name if current_target.character_data else "Sin datos")
+
 			else:
 				current_target = null  # No es válido, no hacer hover
 		
@@ -280,18 +352,9 @@ func _handle_targeting_hover(mouse_pos: Vector2) -> void:
 
 func _get_character_slot_at_position(global_pos: Vector2) -> Control:
 	"""Obtiene el slot de personaje en la posición dada"""
-	print("DEBUG: Buscando character slot en posición: ", global_pos)
-	print("DEBUG: Player slots: ", player_slots_nodes.size(), " Enemy slots: ", enemy_slots_nodes.size())
-	
 	for slot in player_slots_nodes + enemy_slots_nodes:
-		if slot.character_data:
-			var rect = slot.get_global_rect()
-			print("DEBUG: Slot ", slot.character_data.name, " rect: ", rect)
-			if rect.has_point(global_pos):
-				print("DEBUG: ¡Encontrado slot! ", slot.character_data.name)
-				return slot
-	
-	print("DEBUG: No se encontró slot en esa posición")
+		if slot.character_data and slot.get_global_rect().has_point(global_pos):
+			return slot
 	return null
 
 func _on_character_targeted(character_data: CharacterData) -> void:
@@ -400,12 +463,28 @@ func _discard_card(card: Node2D) -> void:
 	
 	print("🗑️ Descartando carta: ", card.data.name if card.data else "Sin datos")
 	
+	# Añadir a la pila de descarte
+	if card.data:
+		discard_pile.append(card.data)
+		_update_discard_button_display()
+	
 	# Remover de la mano
 	hand_container.remove_child(card)
 	card.queue_free()
-	
-	# TODO: Añadir a pila de descarte cuando se implemente
-	print("📚 Carta añadida al descarte (sistema pendiente de implementar)")
+
+func _update_discard_button_display() -> void:
+	"""Actualiza el display del botón de descarte"""
+	if discard_button:
+		discard_button.text = str(discard_pile.size())
+
+func get_discard_pile_size() -> int:
+	"""Retorna el tamaño de la pila de descarte"""
+	return discard_pile.size()
+
+func clear_discard_pile() -> void:
+	"""Limpia la pila de descarte"""
+	discard_pile.clear()
+	_update_discard_button_display()
 
 # --- OTRAS FUNCIONES DE UI ---
 func _initialize_character_slots(container: HBoxContainer, slots_array: Array, count: int):

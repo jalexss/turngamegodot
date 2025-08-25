@@ -52,13 +52,10 @@ func _on_mouse_exited():
 
 # Se llama para cualquier evento de input dentro del área del Control
 func _on_gui_input(event: InputEvent):
-    print("DEBUG: CharacterSlot._on_gui_input llamado con evento: ", event)
     # Comprobar si el evento es un clic izquierdo del ratón
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.is_pressed():
-        print("DEBUG: Click izquierdo detectado en CharacterSlot: ", character_data.name if character_data else "Sin datos")
         # Emitir la señal con nuestros datos
         emit_signal("character_clicked", character_data)
-        print("DEBUG: Señal character_clicked emitida para: ", character_data.name)
 
 # --- SISTEMA DE TARGETING ---
 func set_targeting_highlight(enabled: bool) -> void:
@@ -81,7 +78,7 @@ func set_targeting_hover(enabled: bool) -> void:
         # Hover más intenso durante targeting
         hover_effect.visible = true
         hover_effect.modulate = Color.ORANGE  # Color naranja para hover de targeting
-        print("👆 Hover en target: ", character_data.name if character_data else "Sin datos")
+
     else:
         # Volver al resaltado normal de targeting
         if is_targeting_highlight:
