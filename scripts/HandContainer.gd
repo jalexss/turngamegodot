@@ -172,19 +172,34 @@ func focus_card(card: Node2D) -> void:
 	focus_tween = create_tween()
 	focus_tween.set_parallel(true)
 	
-	# Mover carta al centro y hacerla más grande
-	var focus_position = Vector2(0, -50)  # Ligeramente arriba del centro
-	var focus_scale = Vector2(1.2, 1.2)   # 20% más grande
+	# Calcular posición central del viewport
+	var viewport_size = get_viewport().get_visible_rect().size
+	var viewport_center_y = viewport_size.y / 2.0
+	
+	# Calcular posición Y relativa al HandContainer
+	# HandContainer está en global_position, queremos que la carta vaya al centro del viewport
+	var hand_global_y = global_position.y
+	var target_global_y = viewport_center_y
+	var relative_y = target_global_y - hand_global_y
+	
+	# Ajustar ligeramente hacia arriba para mejor visibilidad
+	var focus_position = Vector2(0, relative_y - 50)  # Centrado en Y del viewport, ligeramente arriba
+	var focus_scale = Vector2(1.3, 1.3)   # Un poco más grande para mejor visibilidad
 	var focus_rotation = 0.0               # Sin rotación
+	
+	print("DEBUG: Focus - Viewport Y: ", viewport_center_y, " HandContainer Y: ", hand_global_y, " Relativo Y: ", relative_y, " Posición focus: ", focus_position)
 	
 	# Animar transformaciones
 	focus_tween.tween_property(card, "position", focus_position, 0.4)
 	focus_tween.tween_property(card, "scale", focus_scale, 0.4)
 	focus_tween.tween_property(card, "rotation", focus_rotation, 0.4)
-	focus_tween.tween_property(card, "modulate", Color(1.1, 1.1, 1.0), 0.4)
+	focus_tween.tween_property(card, "modulate", Color(1.15, 1.15, 1.05), 0.4)  # Más brillo
 	
 	# Traer al frente
 	card.z_index = 1000
+	
+	# Opcional: Añadir un efecto de sombra/glow sutil
+	# (Esto se podría implementar más adelante con un shader o nodo adicional)
 
 func unfocus_card() -> void:
 	"""Quita el focus de la carta actual"""
