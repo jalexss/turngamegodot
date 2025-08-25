@@ -11,6 +11,7 @@ signal character_clicked(character_data)
 @onready var hover_effect = $HoverEffect
 
 var character_data: CharacterData
+var is_targeting_highlight: bool = false
 
 func _ready():
     # Conectar las señales del ratón a nuestras funciones
@@ -39,11 +40,14 @@ func set_character_data(data: CharacterData):
 
 # Se llama cuando el ratón entra en el área del Control
 func _on_mouse_entered():
-    hover_effect.visible = true
+    if not is_targeting_highlight:
+        hover_effect.visible = true
+        hover_effect.modulate = Color.WHITE
 
 # Se llama cuando el ratón sale del área
 func _on_mouse_exited():
-    hover_effect.visible = false
+    if not is_targeting_highlight:
+        hover_effect.visible = false
 
 # Se llama para cualquier evento de input dentro del área del Control
 func _on_gui_input(event: InputEvent):
@@ -52,3 +56,39 @@ func _on_gui_input(event: InputEvent):
         # Emitir la señal con nuestros datos
         emit_signal("character_clicked", character_data)
         print("Has hecho clic en: ", character_data.name)
+
+# --- SISTEMA DE TARGETING ---
+func set_targeting_highlight(enabled: bool) -> void:
+    """Activa/desactiva el resaltado de targeting"""
+    is_targeting_highlight = enabled
+    
+    if enabled:
+        # Mostrar resaltado de targeting (diferente al hover)
+        hover_effect.visible = true
+        hover_effect.modulate = Color.YELLOW  # Color dorado para targeting
+    else:
+        # Solo ocultar si no hay hover normal
+        if not _is_mouse_over():
+            hover_effect.visible = false
+            hover_effect.modulate = Color.WHITE
+
+func set_targeting_hover(enabled: bool) -> void:
+    """Activa/desactiva el hover durante targeting"""
+    if enabled:
+        # Hover más intenso durante targeting
+        hover_effect.visible = true
+        hover_effect.modulate = Color.ORANGE  # Color naranja para hover de targeting
+        print("👆 Hover en target: ", character_data.name if character_data else "Sin datos")
+    else:
+        # Volver al resaltado normal de targeting
+        if is_targeting_highlight:
+            hover_effect.modulate = Color.YELLOW
+        else:
+            hover_effect.visible = false
+            hover_effect.modulate = Color.WHITE
+
+func _is_mouse_over() -> bool:
+    """Verifica si el mouse está sobre este slot"""
+    var mouse_pos = get_global_mouse_position()
+    var rect = get_global_rect()
+    return rect.has_point(mouse_pos)

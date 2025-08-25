@@ -18,6 +18,12 @@ var last_hovered_card: Node2D = null
 # Configuración de la mano
 const MAX_HAND_SIZE: int = 8  # Reducido para mejor visibilidad
 
+# Estados de targeting
+enum TargetingState { NONE, WAITING_FOR_TARGET }
+var targeting_state: TargetingState = TargetingState.NONE
+var selected_card: Node2D = null
+var hovered_target: Control = null  # Personaje bajo el cursor durante targeting
+
 const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn")
 
 # --- FUNCIONES DEL MOTOR ---
@@ -67,28 +73,33 @@ func _input(event: InputEvent) -> void:
 
 # --- MANEJO DE INPUT Y HOVER ---
 func _handle_mouse_motion(mouse_pos: Vector2) -> void:
-	var current_top_card = _get_top_card_at_position(mouse_pos)
-	
-	if current_top_card != last_hovered_card:
-		if last_hovered_card:
-			_apply_hover_effect(last_hovered_card, false)
+	if targeting_state == TargetingState.WAITING_FOR_TARGET:
+		# Durante targeting, detectar personajes bajo el cursor
+		_handle_targeting_hover(mouse_pos)
+	else:
+		# Comportamiento normal de hover en cartas
+		var current_top_card = _get_top_card_at_position(mouse_pos)
 		
-		if current_top_card:
-			_apply_hover_effect(current_top_card, true)
-		
-		last_hovered_card = current_top_card
+		if current_top_card != last_hovered_card:
+			if last_hovered_card:
+				_apply_hover_effect(last_hovered_card, false)
+			
+			if current_top_card:
+				_apply_hover_effect(current_top_card, true)
+			
+			last_hovered_card = current_top_card
 
 func _handle_mouse_click(mouse_pos: Vector2) -> void:
 	var clicked_card = _get_top_card_at_position(mouse_pos)
 	if clicked_card and hand_container:
-		if hand_container.is_card_focused(clicked_card):
-			# Si ya está enfocada, quitar focus
-			hand_container.unfocus_card()
-			print("Focus removido de carta: ", clicked_card.data.name if clicked_card.data else "Sin datos")
+		if targeting_state == TargetingState.WAITING_FOR_TARGET and selected_card == clicked_card:
+			# Cancelar targeting si se clickea la misma carta
+			_cancel_targeting()
 		else:
-			# Hacer focus en la carta
+			# Hacer focus Y activar targeting inmediatamente
 			hand_container.focus_card(clicked_card)
-			print("Focus en carta: ", clicked_card.data.name if clicked_card.data else "Sin datos")
+			_start_targeting(clicked_card)
+			print("🎯 Targeting activado para: ", clicked_card.data.name if clicked_card.data else "Sin datos")
 
 # --- GESTIÓN DE LA MANO (DELEGADA) ---
 func clear_hand() -> void:
@@ -158,6 +169,215 @@ func _apply_hover_effect(card: Node2D, is_hovered: bool) -> void:
 	
 	# Delegar el hover al HandContainer que maneja el z-index correctamente
 	hand_container.apply_hover_effect(card, is_hovered)
+
+# --- SISTEMA DE TARGETING ---
+func _start_targeting(card: Node2D) -> void:
+	"""Inicia el modo de targeting para una carta"""
+	if not card or not card.data:
+		return
+	
+	selected_card = card
+	targeting_state = TargetingState.WAITING_FOR_TARGET
+	
+	# Determinar qué personajes son válidos según el tipo de carta
+	var valid_targets = _get_valid_targets_for_card(card.data)
+	
+	print("🎯 Targeting activado para: ", card.data.name)
+	print("🎯 Tipo de carta: ", CardData.CardType.keys()[card.data.card_type])
+	print("🎯 Targets válidos: ", valid_targets.size())
+	
+	# Cambiar cursor
+	Input.set_default_cursor_shape(Input.CURSOR_CROSS)
+	
+	# Resaltar targets válidos
+	_highlight_valid_targets(valid_targets)
+
+func _cancel_targeting() -> void:
+	"""Cancela el modo de targeting"""
+	print("❌ Targeting cancelado")
+	targeting_state = TargetingState.NONE
+	selected_card = null
+	hovered_target = null
+	
+	# Restaurar cursor normal
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	
+	# Quitar resaltado de todos los personajes
+	_clear_target_highlights()
+	
+	# Quitar focus de carta si existe
+	if hand_container:
+		hand_container.unfocus_card()
+
+func _get_valid_targets_for_card(card_data: CardData) -> Array:
+	"""Determina qué personajes son targets válidos para una carta"""
+	var valid_targets: Array = []
+	
+	match card_data.card_type:
+		CardData.CardType.ATTACK, CardData.CardType.DEBUFF:
+			# Cartas ofensivas van a enemigos
+			valid_targets = enemy_slots_nodes.filter(func(slot): return slot.character_data != null)
+		CardData.CardType.HEAL, CardData.CardType.DEFENSE, CardData.CardType.BUFF:
+			# Cartas defensivas/de apoyo van a aliados
+			valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null)
+		_:
+			# Otros tipos por ahora no tienen targeting específico
+			pass
+	
+	return valid_targets
+
+func _highlight_valid_targets(targets: Array) -> void:
+	"""Resalta los targets válidos"""
+	for slot in targets:
+		if slot.has_method("set_targeting_highlight"):
+			slot.set_targeting_highlight(true)
+
+func _clear_target_highlights() -> void:
+	"""Quita el resaltado de todos los targets"""
+	for slot in player_slots_nodes + enemy_slots_nodes:
+		if slot.has_method("set_targeting_highlight"):
+			slot.set_targeting_highlight(false)
+
+func _handle_targeting_hover(mouse_pos: Vector2) -> void:
+	"""Maneja el hover durante el targeting"""
+	var current_target = _get_character_slot_at_position(mouse_pos)
+	
+	if current_target != hovered_target:
+		# Quitar hover del target anterior
+		if hovered_target and hovered_target.has_method("set_targeting_hover"):
+			hovered_target.set_targeting_hover(false)
+		
+		# Aplicar hover al nuevo target
+		if current_target and current_target.has_method("set_targeting_hover"):
+			# Verificar si es un target válido
+			var valid_targets = _get_valid_targets_for_card(selected_card.data)
+			if current_target in valid_targets:
+				current_target.set_targeting_hover(true)
+				print("🎯 Apuntando a: ", current_target.character_data.name if current_target.character_data else "Sin datos")
+			else:
+				current_target = null  # No es válido, no hacer hover
+		
+		hovered_target = current_target
+
+func _get_character_slot_at_position(global_pos: Vector2) -> Control:
+	"""Obtiene el slot de personaje en la posición dada"""
+	for slot in player_slots_nodes + enemy_slots_nodes:
+		if slot.character_data and slot.get_global_rect().has_point(global_pos):
+			return slot
+	return null
+
+func _on_character_targeted(character_data: CharacterData) -> void:
+	"""Maneja cuando se selecciona un personaje durante el targeting"""
+	if targeting_state != TargetingState.WAITING_FOR_TARGET or not selected_card:
+		return
+	
+	# Verificar si es un target válido
+	var valid_targets = _get_valid_targets_for_card(selected_card.data)
+	var target_slot = null
+	
+	# Buscar el slot del personaje seleccionado
+	for slot in player_slots_nodes + enemy_slots_nodes:
+		if slot.character_data == character_data:
+			target_slot = slot
+			break
+	
+	if not target_slot or target_slot not in valid_targets:
+		print("❌ Target inválido para esta carta")
+		return
+	
+	print("✅ Carta aplicada: ", selected_card.data.name, " → ", character_data.name)
+	
+	# Aplicar efectos de la carta
+	_apply_card_effects(selected_card.data, character_data)
+	
+	# Guardar referencia a la carta antes de limpiar targeting
+	var card_to_discard = selected_card
+	
+	# Limpiar targeting (esto quita el focus automáticamente)
+	_cancel_targeting()
+	
+	# Remover carta de la mano
+	_discard_card(card_to_discard)
+
+# --- SISTEMA DE EFECTOS DE CARTAS ---
+func _apply_card_effects(card_data: CardData, target_character: CharacterData) -> void:
+	"""Aplica los efectos de una carta a un personaje"""
+	print("🎴 Aplicando efectos de ", card_data.name, " a ", target_character.name)
+	
+	for effect in card_data.effects:
+		if not effect is Dictionary:
+			continue
+			
+		var effect_type = effect.get("type", "")
+		var effect_value = effect.get("value", 0)
+		
+		match effect_type:
+			"DAMAGE":
+				_apply_damage(target_character, effect_value)
+			"HEAL":
+				_apply_heal(target_character, effect_value)
+			"SHIELD":
+				_apply_shield(target_character, effect_value)
+			"BUFF":
+				_apply_buff(target_character, effect_value)
+			"DEBUFF":
+				_apply_debuff(target_character, effect_value)
+			_:
+				print("⚠️ Efecto desconocido: ", effect_type)
+	
+	# Actualizar UI del personaje
+	_update_character_display(target_character)
+
+func _apply_damage(character: CharacterData, damage: int) -> void:
+	"""Aplica daño a un personaje"""
+	var actual_damage = max(0, damage - character.defense)
+	character.hp = max(0, character.hp - actual_damage)
+	print("💥 ", character.name, " recibe ", actual_damage, " de daño (HP: ", character.hp, "/", character.max_hp, ")")
+
+func _apply_heal(character: CharacterData, heal: int) -> void:
+	"""Cura a un personaje"""
+	var old_hp = character.hp
+	character.hp = min(character.max_hp, character.hp + heal)
+	var actual_heal = character.hp - old_hp
+	print("💚 ", character.name, " se cura ", actual_heal, " HP (HP: ", character.hp, "/", character.max_hp, ")")
+
+func _apply_shield(character: CharacterData, shield: int) -> void:
+	"""Aplica escudo a un personaje (por ahora solo aumenta defensa temporalmente)"""
+	character.defense += shield
+	print("🛡️ ", character.name, " gana ", shield, " de escudo (Defensa: ", character.defense, ")")
+
+func _apply_buff(character: CharacterData, buff: int) -> void:
+	"""Aplica buff a un personaje"""
+	character.attack += buff
+	print("⬆️ ", character.name, " gana ", buff, " de ataque (Ataque: ", character.attack, ")")
+
+func _apply_debuff(character: CharacterData, debuff: int) -> void:
+	"""Aplica debuff a un personaje"""
+	character.attack = max(0, character.attack - debuff)
+	print("⬇️ ", character.name, " pierde ", debuff, " de ataque (Ataque: ", character.attack, ")")
+
+func _update_character_display(character: CharacterData) -> void:
+	"""Actualiza la visualización de un personaje"""
+	# Buscar el slot del personaje y actualizar su display
+	for slot in player_slots_nodes + enemy_slots_nodes:
+		if slot.character_data == character:
+			slot.set_character_data(character)  # Esto debería actualizar la UI
+			break
+
+# --- SISTEMA DE DESCARTE ---
+func _discard_card(card: Node2D) -> void:
+	"""Remueve una carta de la mano y la añade al descarte"""
+	if not card or not hand_container:
+		return
+	
+	print("🗑️ Descartando carta: ", card.data.name if card.data else "Sin datos")
+	
+	# Remover de la mano
+	hand_container.remove_child(card)
+	card.queue_free()
+	
+	# TODO: Añadir a pila de descarte cuando se implemente
+	print("📚 Carta añadida al descarte (sistema pendiente de implementar)")
 
 # --- OTRAS FUNCIONES DE UI ---
 func _initialize_character_slots(container: HBoxContainer, slots_array: Array, count: int):
