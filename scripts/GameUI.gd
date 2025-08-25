@@ -121,6 +121,10 @@ func _handle_mouse_motion(mouse_pos: Vector2) -> void:
 			if current_top_card:
 				_apply_hover_effect(current_top_card, true)
 			
+			# Si no hay targeting activo, limpiar highlights residuales
+			if targeting_state == TargetingState.NONE:
+				_clear_target_highlights()
+			
 			last_hovered_card = current_top_card
 
 func _handle_mouse_press(mouse_pos: Vector2) -> void:
@@ -153,6 +157,9 @@ func _handle_mouse_release(mouse_pos: Vector2) -> void:
 # --- SISTEMA DE DRAG & DROP ---
 func _start_card_drag(card: Node2D, mouse_pos: Vector2) -> void:
 	"""Inicia el drag de una carta"""
+	# Limpiar highlights al empezar drag
+	_clear_target_highlights()
+	
 	dragged_card = card
 	drag_start_position = card.global_position
 	
@@ -203,6 +210,10 @@ func clear_hand() -> void:
 
 func add_card_to_hand(card: Node2D) -> void:
 	print("DEBUG: GameUI.add_card_to_hand() llamado con carta: ", card)
+	
+	# Limpiar highlights al añadir nueva carta
+	_clear_target_highlights()
+	
 	if not hand_container:
 		print("ERROR: HandContainer no encontrado. No se puede añadir carta.")
 		card.queue_free()
@@ -270,6 +281,9 @@ func _start_targeting(card: Node2D) -> void:
 	"""Inicia el modo de targeting para una carta"""
 	if not card or not card.data:
 		return
+	
+	# Limpiar highlights previos antes de empezar
+	_clear_target_highlights()
 	
 	selected_card = card
 	targeting_state = TargetingState.WAITING_FOR_TARGET
@@ -342,6 +356,11 @@ func _clear_target_highlights() -> void:
 	for slot in player_slots_nodes + enemy_slots_nodes:
 		if slot.has_method("set_targeting_highlight"):
 			slot.set_targeting_highlight(false)
+		if slot.has_method("set_targeting_hover"):
+			slot.set_targeting_hover(false)
+	
+	# Limpiar variable de hover target
+	hovered_target = null
 
 func _handle_targeting_hover(mouse_pos: Vector2) -> void:
 	"""Maneja el hover durante el targeting"""
