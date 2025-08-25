@@ -11,6 +11,7 @@ const PLAYER_DECK_PATH = "res://data/player_deck.json"
 
 var turn_num := 0
 var energy   := 0
+var max_energy := 3
 var player_chars : Array = []
 var enemy_chars  : Array = []
 var char_defs    : Dictionary = {}
@@ -40,10 +41,16 @@ func _ready() -> void:
 
 func _start_turn() -> void:
 	turn_num += 1
-	energy = 3
+	# Regenerar energía al máximo normal (no afecta energía de testing que excede el límite)
+	if energy < max_energy:
+		energy = max_energy
+		print("⚡ Energía regenerada a ", max_energy)
+	else:
+		print("⚡ Energía actual: ", energy, " (excede máximo normal de ", max_energy, ")")
+	
 	print("=== DEBUG: Iniciando turno ", turn_num, " ===")
 	ui.set_turn(turn_num)
-	ui.set_energy(energy)
+	ui.set_energy(energy, max_energy)
 	ui.clear_hand()
 	ui.update_player_chars(player_chars)
 	ui.update_enemy_chars(enemy_chars)
@@ -194,6 +201,46 @@ func _create_super_heal_card() -> Node2D:
 	
 	print("DEBUG: Carta súper curación creada: ", super_heal_data.name)
 	return card
+
+# --- SISTEMA DE ENERGÍA ---
+func can_afford_card(card_cost: int) -> bool:
+	"""Verifica si el jugador puede pagar el coste de una carta"""
+	return energy >= card_cost
+
+func use_energy(cost: int) -> bool:
+	"""Usa energía para una carta. Retorna true si se pudo usar"""
+	if energy >= cost:
+		energy -= cost
+		ui.set_energy(energy, max_energy)
+		print("⚡ Energía usada: ", cost, " → Energía restante: ", energy, "/", max_energy)
+		return true
+	else:
+		print("❌ Energía insuficiente: ", energy, "/", cost)
+		return false
+
+func add_energy(amount: int) -> void:
+	"""Añade energía respetando el límite máximo (regeneración normal)"""
+	energy = min(max_energy, energy + amount)
+	ui.set_energy(energy, max_energy)
+	print("⚡ Energía añadida: ", amount, " → Energía actual: ", energy, "/", max_energy)
+
+func add_energy_test(amount: int) -> void:
+	"""Añade energía sin límite (solo para testing) - máximo absoluto 99"""
+	var old_energy = energy
+	energy = min(99, energy + amount)  # Límite absoluto de 99
+	ui.set_energy(energy, max_energy)
+	print("🧪 Energía de prueba añadida: ", amount, " → Energía actual: ", energy, "/", max_energy, " (¡EXCEDE LÍMITE!)")
+	
+	if energy > max_energy:
+		print("⚠️ MODO TESTING: Energía excede el máximo normal (", energy, " > ", max_energy, ")")
+
+func get_current_energy() -> int:
+	"""Retorna la energía actual"""
+	return energy
+
+func get_max_energy() -> int:
+	"""Retorna la energía máxima"""
+	return max_energy
 
 # Métodos auxiliares para personajes/enemigos
 func _load_char_defs(path: String) -> Dictionary:

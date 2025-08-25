@@ -9,6 +9,7 @@ extends Control
 @onready var hand_container = $HandContainer as HandContainer
 @onready var test_button = $TestButton as Button
 @onready var discard_button = $DiscardButton as Button
+@onready var energy_button = $EnergyButton as Button
 
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
@@ -79,6 +80,20 @@ func _create_missing_nodes() -> void:
 		# Conectar la señal aquí también
 		test_button.pressed.connect(_on_test_button_pressed)
 		print("DEBUG: TestButton creado y conectado")
+	
+	# Crear EnergyButton si no existe
+	if not energy_button:
+		print("DEBUG: Creando EnergyButton automáticamente...")
+		var new_energy_button = Button.new()
+		new_energy_button.name = "EnergyButton"
+		new_energy_button.text = "+3 Energía (∞)"
+		new_energy_button.position = Vector2(270, 50)  # Al lado del TestButton
+		new_energy_button.size = Vector2(180, 60)
+		add_child(new_energy_button)
+		energy_button = new_energy_button
+		# Conectar la señal
+		energy_button.pressed.connect(_on_energy_button_pressed)
+		print("DEBUG: EnergyButton creado y conectado")
 	
 	# Crear DiscardButton si no existe
 	if not discard_button:
@@ -263,6 +278,18 @@ func _on_test_button_pressed() -> void:
 	else:
 		print("DEBUG: ERROR - No se encontró el método _create_test_card en el nodo padre")
 
+# --- FUNCIÓN DE ENERGÍA DE PRUEBA ---
+func _on_energy_button_pressed() -> void:
+	print("DEBUG: Botón de energía de prueba presionado!")
+	
+	# Obtener referencia al nodo Game
+	var game_node = get_parent()
+	if game_node and game_node.has_method("add_energy_test"):
+		game_node.add_energy_test(3)
+		print("DEBUG: 3 de energía de prueba añadida (puede exceder límite)")
+	else:
+		print("DEBUG: ERROR - No se encontró el método add_energy_test en el nodo padre")
+
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
 	if not hand_container:
@@ -282,6 +309,9 @@ func _start_targeting(card: Node2D) -> void:
 	if not card or not card.data:
 		return
 	
+	# NO verificar energía aquí - solo permitir zoom y targeting
+	# La verificación de energía se hace al aplicar la carta
+	
 	# Limpiar highlights previos antes de empezar
 	_clear_target_highlights()
 	
@@ -291,7 +321,8 @@ func _start_targeting(card: Node2D) -> void:
 	# Determinar qué personajes son válidos según el tipo de carta
 	var valid_targets = _get_valid_targets_for_card(card.data)
 	
-	print("🎯 Targeting activado para: ", card.data.name)
+	var card_cost = card.data.cost
+	print("🎯 Targeting activado para: ", card.data.name, " (Coste: ", card_cost, ")")
 	print("🎯 Tipo de carta: ", CardData.CardType.keys()[card.data.card_type])
 	print("🎯 Targets válidos: ", valid_targets.size())
 	
@@ -409,7 +440,27 @@ func _on_character_targeted(character_data: CharacterData) -> void:
 		print("❌ Target inválido para esta carta")
 		return
 	
-	print("✅ Carta aplicada: ", selected_card.data.name, " → ", character_data.name)
+	# Verificar si hay suficiente energía
+	var card_cost = selected_card.data.cost
+	var game_node = get_parent()
+	
+	if not game_node or not game_node.has_method("can_afford_card"):
+		print("❌ ERROR - No se puede verificar energía")
+		_cancel_targeting()
+		return
+	
+	if not game_node.can_afford_card(card_cost):
+		print("❌ Energía insuficiente para usar ", selected_card.data.name, " (Coste: ", card_cost, ")")
+		_cancel_targeting()
+		return
+	
+	# Usar energía
+	if not game_node.use_energy(card_cost):
+		print("❌ Error al usar energía")
+		_cancel_targeting()
+		return
+	
+	print("✅ Carta aplicada: ", selected_card.data.name, " → ", character_data.name, " (Coste: ", card_cost, ")")
 	
 	# Aplicar efectos de la carta
 	_apply_card_effects(selected_card.data, character_data)
@@ -590,13 +641,25 @@ func _initialize_character_slots(container: HBoxContainer, slots_array: Array, c
 		slots_array.append(slot_instance)
 		slot_instance.visible = false
 
-# Estas funciones ahora no hacen nada, ya que no tenemos los labels de Turno/Energía
-# en esta versión simplificada. Puedes volver a añadirlos si lo necesitas.
-func set_turn(_turn_num: int):
-	pass # print("Turno: ", _turn_num)
+# --- FUNCIONES DE UI DISPLAY ---
+func set_turn(turn_num: int):
+	"""Actualiza el display del turno"""
+	var turn_label = get_node_or_null("MainVBox/HBoxContainer/TurnPanel/TurnLabel")
+	if turn_label:
+		turn_label.text = "Turno " + str(turn_num)
+		print("🔄 Turno actualizado: ", turn_num)
+	else:
+		print("⚠️ TurnLabel no encontrado para actualizar display")
 
-func set_energy(_energy: int):
-	pass # print("Energía: ", _energy)
+func set_energy(current_energy: int, max_energy: int = 3):
+	"""Actualiza el display de energía"""
+	var energy_label = get_node_or_null("MainVBox/HBoxContainer/EnergyPanel/EnergyLabel")
+	if energy_label:
+		energy_label.text = "⚡ " + str(current_energy) + "/" + str(max_energy)
+		print("⚡ Display actualizado: ", current_energy, "/", max_energy)
+	else:
+		print("⚠️ EnergyLabel no encontrado para actualizar display")
+		print("⚠️ Ruta intentada: MainVBox/HBoxContainer/EnergyPanel/EnergyLabel")
 
 func update_player_chars(chars_data: Array):
 	_update_character_slots(player_slots_nodes, chars_data)
