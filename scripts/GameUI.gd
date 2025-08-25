@@ -70,6 +70,8 @@ func _input(event: InputEvent) -> void:
 		_handle_mouse_motion(event.global_position)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_mouse_click(event.global_position)
+		# No consumir el evento para que los CharacterSlots también lo reciban
+		# get_viewport().set_input_as_handled() # Comentado para permitir propagación
 
 # --- MANEJO DE INPUT Y HOVER ---
 func _handle_mouse_motion(mouse_pos: Vector2) -> void:
@@ -90,16 +92,31 @@ func _handle_mouse_motion(mouse_pos: Vector2) -> void:
 			last_hovered_card = current_top_card
 
 func _handle_mouse_click(mouse_pos: Vector2) -> void:
+	print("DEBUG: Click detectado en posición: ", mouse_pos)
+	
+	if targeting_state == TargetingState.WAITING_FOR_TARGET:
+		# Durante targeting, verificar si se clickeó un personaje
+		var clicked_character_slot = _get_character_slot_at_position(mouse_pos)
+		print("DEBUG: Character slot clickeado: ", clicked_character_slot)
+		
+		if clicked_character_slot and clicked_character_slot.character_data:
+			print("DEBUG: Enviando character_data a _on_character_targeted: ", clicked_character_slot.character_data.name)
+			_on_character_targeted(clicked_character_slot.character_data)
+			return
+		
+		# Si no se clickeó un personaje, verificar si se clickeó la carta para cancelar
+		var clicked_card = _get_top_card_at_position(mouse_pos)
+		if clicked_card and selected_card == clicked_card:
+			_cancel_targeting()
+		return
+	
+	# Comportamiento normal cuando no hay targeting
 	var clicked_card = _get_top_card_at_position(mouse_pos)
 	if clicked_card and hand_container:
-		if targeting_state == TargetingState.WAITING_FOR_TARGET and selected_card == clicked_card:
-			# Cancelar targeting si se clickea la misma carta
-			_cancel_targeting()
-		else:
-			# Hacer focus Y activar targeting inmediatamente
-			hand_container.focus_card(clicked_card)
-			_start_targeting(clicked_card)
-			print("🎯 Targeting activado para: ", clicked_card.data.name if clicked_card.data else "Sin datos")
+		# Hacer focus Y activar targeting inmediatamente
+		hand_container.focus_card(clicked_card)
+		_start_targeting(clicked_card)
+		print("🎯 Targeting activado para: ", clicked_card.data.name if clicked_card.data else "Sin datos")
 
 # --- GESTIÓN DE LA MANO (DELEGADA) ---
 func clear_hand() -> void:
@@ -188,6 +205,7 @@ func _start_targeting(card: Node2D) -> void:
 	
 	# Cambiar cursor
 	Input.set_default_cursor_shape(Input.CURSOR_CROSS)
+	print("DEBUG: Cursor cambiado a CROSS")
 	
 	# Resaltar targets válidos
 	_highlight_valid_targets(valid_targets)
@@ -201,6 +219,7 @@ func _cancel_targeting() -> void:
 	
 	# Restaurar cursor normal
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	print("DEBUG: Cursor restaurado a ARROW")
 	
 	# Quitar resaltado de todos los personajes
 	_clear_target_highlights()
@@ -261,9 +280,18 @@ func _handle_targeting_hover(mouse_pos: Vector2) -> void:
 
 func _get_character_slot_at_position(global_pos: Vector2) -> Control:
 	"""Obtiene el slot de personaje en la posición dada"""
+	print("DEBUG: Buscando character slot en posición: ", global_pos)
+	print("DEBUG: Player slots: ", player_slots_nodes.size(), " Enemy slots: ", enemy_slots_nodes.size())
+	
 	for slot in player_slots_nodes + enemy_slots_nodes:
-		if slot.character_data and slot.get_global_rect().has_point(global_pos):
-			return slot
+		if slot.character_data:
+			var rect = slot.get_global_rect()
+			print("DEBUG: Slot ", slot.character_data.name, " rect: ", rect)
+			if rect.has_point(global_pos):
+				print("DEBUG: ¡Encontrado slot! ", slot.character_data.name)
+				return slot
+	
+	print("DEBUG: No se encontró slot en esa posición")
 	return null
 
 func _on_character_targeted(character_data: CharacterData) -> void:

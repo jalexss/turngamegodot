@@ -17,6 +17,7 @@ func _ready():
     # Conectar las señales del ratón a nuestras funciones
     mouse_entered.connect(_on_mouse_entered)
     mouse_exited.connect(_on_mouse_exited)
+    gui_input.connect(_on_gui_input)  # ¡Esta línea faltaba!
     
     # Ocultar el efecto de hover al inicio
     hover_effect.visible = false
@@ -51,11 +52,13 @@ func _on_mouse_exited():
 
 # Se llama para cualquier evento de input dentro del área del Control
 func _on_gui_input(event: InputEvent):
+    print("DEBUG: CharacterSlot._on_gui_input llamado con evento: ", event)
     # Comprobar si el evento es un clic izquierdo del ratón
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.is_pressed():
+        print("DEBUG: Click izquierdo detectado en CharacterSlot: ", character_data.name if character_data else "Sin datos")
         # Emitir la señal con nuestros datos
         emit_signal("character_clicked", character_data)
-        print("Has hecho clic en: ", character_data.name)
+        print("DEBUG: Señal character_clicked emitida para: ", character_data.name)
 
 # --- SISTEMA DE TARGETING ---
 func set_targeting_highlight(enabled: bool) -> void:
