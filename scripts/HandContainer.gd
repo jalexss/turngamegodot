@@ -10,6 +10,7 @@ var max_cards_optimal: int = 7     # Cantidad óptima máxima para buena visibil
 
 # --- VARIABLES INTERNAS ---
 var card_original_scales: Dictionary = {}
+var card_original_z_indices: Dictionary = {}  # Para recordar z-index original
 var focused_card: Node2D = null
 var focus_tween: Tween = null
 
@@ -43,6 +44,7 @@ func clear_cards() -> void:
 	for child in get_children():
 		child.queue_free()
 	card_original_scales.clear()
+	card_original_z_indices.clear()
 
 func get_card_count() -> int:
 	return get_child_count()
@@ -114,8 +116,11 @@ func _arrange_cards_in_hemisphere() -> void:
 		# Guardar escala original para hover
 		card_original_scales[card] = final_scale
 		
-		# Z-index para prioridad de hover (centro más alto)
-		card.z_index = 100 + int((cos(angle_rad) + 1.0) * 25) + i
+		# Z-index realista: cartas de izquierda a derecha se superponen naturalmente
+		# La carta más a la izquierda (índice 0) está abajo, la más a la derecha (último índice) está arriba
+		var original_z = 100 + i
+		card.z_index = original_z
+		card_original_z_indices[card] = original_z  # Guardar z-index original
 		
 		print("DEBUG: Carta ", i, " - posición: ", target_position, " rotación: ", rotation_angle, " escala: ", final_scale)
 
@@ -226,3 +231,32 @@ func get_focused_card() -> Node2D:
 func is_card_focused(card: Node2D) -> bool:
 	"""Verifica si una carta está enfocada"""
 	return focused_card == card
+
+# --- SISTEMA DE HOVER MEJORADO ---
+func apply_hover_effect(card: Node2D, is_hovered: bool) -> void:
+	"""Aplica efecto de hover manteniendo el z-index natural"""
+	if not card or is_card_focused(card):
+		return
+	
+	var original_scale = get_original_scale(card)
+	var original_z = card_original_z_indices.get(card, card.z_index)
+	
+	if is_hovered:
+		# Elevar temporalmente por encima de todas las cartas
+		var hover_z = 500  # Z-index temporal para hover
+		var hover_scale = original_scale * 1.1
+		
+		var tween = create_tween().set_parallel()
+		tween.tween_property(card, "scale", hover_scale, 0.15)
+		tween.tween_property(card, "modulate", Color(1.1, 1.1, 1.0), 0.15)
+		card.z_index = hover_z
+	else:
+		# Restaurar a valores originales
+		var tween = create_tween().set_parallel()
+		tween.tween_property(card, "scale", original_scale, 0.15)
+		tween.tween_property(card, "modulate", Color.WHITE, 0.15)
+		card.z_index = original_z  # Restaurar z-index original
+
+func get_original_z_index(card: Node2D) -> int:
+	"""Obtiene el z-index original de una carta"""
+	return card_original_z_indices.get(card, 100)

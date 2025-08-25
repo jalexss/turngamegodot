@@ -156,19 +156,8 @@ func _apply_hover_effect(card: Node2D, is_hovered: bool) -> void:
 	if not card or not hand_container: 
 		return
 	
-	# No aplicar hover si la carta está enfocada
-	if hand_container.is_card_focused(card):
-		return
-	
-	# Obtener escala original del HandContainer
-	var original_scale = hand_container.get_original_scale(card)
-	var target_scale = original_scale * 1.1 if is_hovered else original_scale  # Hover más sutil
-	var target_z = card.z_index + (100 if is_hovered else -100)  # Z-index más conservador
-
-	var tween = create_tween().set_parallel()
-	tween.tween_property(card, "scale", target_scale, 0.15)
-	tween.parallel().tween_property(card, "modulate", Color(1.1, 1.1, 1.0) if is_hovered else Color.WHITE, 0.15)
-	card.z_index = target_z
+	# Delegar el hover al HandContainer que maneja el z-index correctamente
+	hand_container.apply_hover_effect(card, is_hovered)
 
 # --- OTRAS FUNCIONES DE UI ---
 func _initialize_character_slots(container: HBoxContainer, slots_array: Array, count: int):
