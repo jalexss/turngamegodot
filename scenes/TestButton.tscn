@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[node name="TestButton" type="Button"]
+offset_left = 50.0
+offset_top = 50.0
+offset_right = 200.0
+offset_bottom = 100.0
+text = "Añadir Carta (Test)"

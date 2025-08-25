@@ -1,7 +1,6 @@
-[gd_scene load_steps=4 format=3 uid="uid://bxdtb1ge7pk18"]
+[gd_scene load_steps=3 format=3 uid="uid://bxdtb1ge7pk18"]
 
 [ext_resource type="Script" uid="uid://bqlfutsd3n0a8" path="res://scripts/GameUI.gd" id="1_7qg0v"]
-[ext_resource type="PackedScene" uid="uid://bw3fx7aj0egrj" path="res://scenes/Hand.tscn" id="1_jkspe"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2n352"]
 
@@ -72,6 +71,11 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_2n352")
 [node name="BattleAreaPlaceholder" type="PanelContainer" parent="MainVBox"]
 layout_mode = 2
 
-[node name="HandContainer" parent="." instance=ExtResource("1_jkspe")]
-position = Vector2(950, 950)
-spread_angle_degrees = 80.0
+[node name="TestButton" type="Button" parent="."]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 0
+offset_left = 50.0
+offset_top = 50.0
+offset_right = 203.0
+offset_bottom = 100.0
+text = "Añadir Carta (Test)"

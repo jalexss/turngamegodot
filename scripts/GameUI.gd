@@ -1,10 +1,13 @@
 extends Control
 
+# No necesitamos importar HandContainer ya que es una clase global
+
 # --- NODOS DE LA ESCENA ---
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
 @onready var player_slots_container = $PlayerChars as HBoxContainer
 @onready var enemy_slots_container  = $EnemyChars as HBoxContainer
-@onready var hand_container = $HandContainer # ¡Asegúrate que el nodo se llame así!
+@onready var hand_container = $HandContainer as HandContainer
+@onready var test_button = $TestButton as Button
 
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
@@ -12,13 +15,49 @@ var enemy_slots_nodes: Array = []
 var hovered_card: Node2D = null
 var last_hovered_card: Node2D = null
 
+# Configuración de la mano
+const MAX_HAND_SIZE: int = 8  # Reducido para mejor visibilidad
+
 const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn")
 
 # --- FUNCIONES DEL MOTOR ---
 func _ready() -> void:
+	# Crear nodos faltantes automáticamente
+	_create_missing_nodes()
+	
 	# Inicializar slots de personajes
 	_initialize_character_slots(player_slots_container, player_slots_nodes, 3)
 	_initialize_character_slots(enemy_slots_container, enemy_slots_nodes, 5)
+	
+	# Configurar botón de pruebas
+	if test_button:
+		test_button.pressed.connect(_on_test_button_pressed)
+		test_button.text = "Añadir Carta (Test)"
+
+func _create_missing_nodes() -> void:
+	# Crear HandContainer si no existe
+	if not hand_container:
+		print("DEBUG: Creando HandContainer automáticamente...")
+		var new_hand_container = preload("res://scripts/HandContainer.gd").new()
+		new_hand_container.name = "HandContainer"
+		new_hand_container.position = Vector2(960, 700)  # Posición visible
+		add_child(new_hand_container)
+		hand_container = new_hand_container
+		print("DEBUG: HandContainer creado en posición global: ", hand_container.global_position)
+	
+	# Crear TestButton si no existe
+	if not test_button:
+		print("DEBUG: Creando TestButton automáticamente...")
+		var new_button = Button.new()
+		new_button.name = "TestButton"
+		new_button.text = "Añadir Carta (Test)"
+		new_button.position = Vector2(50, 50)
+		new_button.size = Vector2(200, 60)  # Más grande para ser más visible
+		add_child(new_button)
+		test_button = new_button
+		# Conectar la señal aquí también
+		test_button.pressed.connect(_on_test_button_pressed)
+		print("DEBUG: TestButton creado y conectado")
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
@@ -41,44 +80,94 @@ func _handle_mouse_motion(mouse_pos: Vector2) -> void:
 
 func _handle_mouse_click(mouse_pos: Vector2) -> void:
 	var clicked_card = _get_top_card_at_position(mouse_pos)
-	if clicked_card:
-		print("Carta seleccionada: ", clicked_card.data.name if clicked_card.data else "sin data")
+	if clicked_card and hand_container:
+		if hand_container.is_card_focused(clicked_card):
+			# Si ya está enfocada, quitar focus
+			hand_container.unfocus_card()
+			print("Focus removido de carta: ", clicked_card.data.name if clicked_card.data else "Sin datos")
+		else:
+			# Hacer focus en la carta
+			hand_container.focus_card(clicked_card)
+			print("Focus en carta: ", clicked_card.data.name if clicked_card.data else "Sin datos")
 
 # --- GESTIÓN DE LA MANO (DELEGADA) ---
 func clear_hand() -> void:
+	if not hand_container:
+		print("Warning: HandContainer no encontrado. Asegúrate de añadir el nodo HandContainer a GameUI.tscn")
+		return
 	hand_container.clear_cards()
 	hovered_card = null
 	last_hovered_card = null
 
 func add_card_to_hand(card: Node2D) -> void:
+	print("DEBUG: GameUI.add_card_to_hand() llamado con carta: ", card)
+	if not hand_container:
+		print("ERROR: HandContainer no encontrado. No se puede añadir carta.")
+		card.queue_free()
+		return
+	
+	print("DEBUG: HandContainer encontrado: ", hand_container)
+		
+	# Verificar límite máximo de cartas
+	if get_hand_size() >= MAX_HAND_SIZE:
+		print("¡Mano llena! Máximo ", MAX_HAND_SIZE, " cartas permitidas.")
+		card.queue_free()  # Eliminar la carta si no se puede añadir
+		return
+	
+	print("DEBUG: Enviando carta a HandContainer...")
 	hand_container.add_card(card)
-	card.scale = Vector2(0.8, 0.8)
+	print("DEBUG: Carta añadida. Cartas en mano: ", get_hand_size(), "/", MAX_HAND_SIZE)
+
+func get_hand_size() -> int:
+	if not hand_container:
+		return 0
+	return hand_container.get_card_count()
+
+# --- FUNCIÓN DE PRUEBAS ---
+func _on_test_button_pressed() -> void:
+	print("DEBUG: Botón de test presionado!")
+	print("DEBUG: Cartas actuales en mano: ", get_hand_size(), "/", MAX_HAND_SIZE)
+	
+	# Verificar si ya está llena la mano
+	if get_hand_size() >= MAX_HAND_SIZE:
+		print("DEBUG: Mano llena, no se puede añadir más cartas")
+		return
+	
+	# Crear una carta de prueba aleatoria
+	var game_node = get_parent()
+	if game_node and game_node.has_method("_create_test_card"):
+		print("DEBUG: Creando carta de test...")
+		var test_card = game_node._create_test_card()
+		if test_card:
+			print("DEBUG: Carta de test creada exitosamente")
+			add_card_to_hand(test_card)
+		else:
+			print("DEBUG: ERROR - No se pudo crear carta de test")
+	else:
+		print("DEBUG: ERROR - No se encontró el método _create_test_card en el nodo padre")
 
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
-	var top_card: Node2D = null
-	var max_z = -1
-
-	for card in hand_container.get_children():
-		if card is Node2D and card.visible:
-			var local_pos = card.to_local(global_pos)
-			var card_rect = Rect2(Vector2(-100, -127), Vector2(200, 254))
-			
-			if card_rect.has_point(local_pos) and card.z_index > max_z:
-				top_card = card
-				max_z = card.z_index
-	
-	return top_card
+	if not hand_container:
+		return null
+	return hand_container.get_card_at_position(global_pos)
 
 func _apply_hover_effect(card: Node2D, is_hovered: bool) -> void:
-	if not card: return
+	if not card or not hand_container: 
+		return
 	
-	var original_scale = Vector2(0.8, 0.8)
-	var target_scale = original_scale * 1.15 if is_hovered else original_scale
-	var target_z = card.z_index + (1000 if is_hovered else -1000)
+	# No aplicar hover si la carta está enfocada
+	if hand_container.is_card_focused(card):
+		return
+	
+	# Obtener escala original del HandContainer
+	var original_scale = hand_container.get_original_scale(card)
+	var target_scale = original_scale * 1.1 if is_hovered else original_scale  # Hover más sutil
+	var target_z = card.z_index + (100 if is_hovered else -100)  # Z-index más conservador
 
 	var tween = create_tween().set_parallel()
 	tween.tween_property(card, "scale", target_scale, 0.15)
+	tween.parallel().tween_property(card, "modulate", Color(1.1, 1.1, 1.0) if is_hovered else Color.WHITE, 0.15)
 	card.z_index = target_z
 
 # --- OTRAS FUNCIONES DE UI ---
@@ -100,11 +189,11 @@ func _initialize_character_slots(container: HBoxContainer, slots_array: Array, c
 
 # Estas funciones ahora no hacen nada, ya que no tenemos los labels de Turno/Energía
 # en esta versión simplificada. Puedes volver a añadirlos si lo necesitas.
-func set_turn(turn_num: int):
-	pass # print("Turno: ", turn_num)
+func set_turn(_turn_num: int):
+	pass # print("Turno: ", _turn_num)
 
-func set_energy(energy: int):
-	pass # print("Energía: ", energy)
+func set_energy(_energy: int):
+	pass # print("Energía: ", _energy)
 
 func update_player_chars(chars_data: Array):
 	_update_character_slots(player_slots_nodes, chars_data)

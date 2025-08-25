@@ -25,32 +25,84 @@ func _ready() -> void:
 	enemy_chars  = _generate_roster(enemy_defs, 1, 5) # Ajusta el rango según tus necesidades
 
 	# Cargar deck del jugador
+	print("DEBUG: Cargando deck del jugador...")
 	var player_card_ids: Array = _get_player_deck()
+	print("DEBUG: IDs de cartas obtenidos: ", player_card_ids)
 	if player_card_ids.is_empty():
 		push_error("Game.gd: No se pudo cargar el deck del jugador.")
 		deck.load_deck_from_ids([])
 	else:
+		print("DEBUG: Cargando ", player_card_ids.size(), " cartas en el deck...")
 		deck.load_deck_from_ids(player_card_ids)
+		print("DEBUG: Deck cargado exitosamente")
 	
 	_start_turn()
 
 func _start_turn() -> void:
 	turn_num += 1
 	energy = 3
+	print("=== DEBUG: Iniciando turno ", turn_num, " ===")
 	ui.set_turn(turn_num)
 	ui.set_energy(energy)
 	ui.clear_hand()
 	ui.update_player_chars(player_chars)
 	ui.update_enemy_chars(enemy_chars)
+	print("DEBUG: Intentando robar 4 cartas...")
 	for i in range(4):
+		print("DEBUG: Robando carta ", i + 1, "/4")
 		_draw_and_show()
 
 func _draw_and_show() -> void:
 	var cd = deck.draw()
 	if cd:
+		print("DEBUG: Creando carta: ID=", cd.id, " Nombre=", cd.name)
 		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
 		card.set_data(cd)
 		ui.add_card_to_hand(card)
+		print("DEBUG: Carta añadida exitosamente")
+	else:
+		print("DEBUG: ERROR - No hay cartas en el deck")
+
+# --- FUNCIÓN DE PRUEBAS ---
+func _create_test_card() -> Node2D:
+	print("DEBUG: _create_test_card() llamado")
+	
+	# Obtener una carta aleatoria disponible para el jugador
+	var player_cards = _get_player_available_cards()
+	print("DEBUG: Cartas disponibles para test: ", player_cards.size())
+	
+	if player_cards.is_empty():
+		print("DEBUG: ERROR - No hay cartas disponibles para crear carta de prueba")
+		return null
+	
+	# Seleccionar ID aleatorio
+	var random_id = player_cards[randi() % player_cards.size()]
+	print("DEBUG: ID seleccionado para test: ", random_id, " (tipo: ", typeof(random_id), ")")
+	
+	# Convertir a int si es necesario
+	var card_id = int(random_id)
+	print("DEBUG: ID convertido a int: ", card_id)
+	print("DEBUG: Claves disponibles en all_card_definitions: ", deck.all_card_definitions.keys())
+	
+	# Crear CardData desde las definiciones cargadas
+	if deck.all_card_definitions.has(card_id):
+		var card_data = deck.all_card_definitions[card_id]
+		print("DEBUG: Datos de carta encontrados: ", card_data.name)
+		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+		card.set_data(card_data)
+		print("DEBUG: Carta de test creada exitosamente")
+		return card
+	
+	print("DEBUG: ERROR - No se pudo encontrar definición para carta ID: ", card_id)
+	print("DEBUG: Intentando buscar con ID original: ", random_id)
+	if deck.all_card_definitions.has(random_id):
+		var card_data = deck.all_card_definitions[random_id]
+		print("DEBUG: Encontrado con ID original!")
+		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+		card.set_data(card_data)
+		return card
+	
+	return null
 
 # Métodos auxiliares para personajes/enemigos
 func _load_char_defs(path: String) -> Dictionary:
@@ -188,7 +240,8 @@ func _get_player_available_cards() -> Array:
 		if card_data is Dictionary and card_data.has("available_to") and card_data.has("id"):
 			var available_to = card_data.get("available_to", [])
 			if available_to is Array and "player" in available_to:
-				player_cards.append(card_data.get("id"))
+				var card_id = int(card_data.get("id"))  # Asegurar que sea entero
+				player_cards.append(card_id)
 	
 	# Crear una lista con múltiples copias para tener suficientes cartas
 	var expanded_deck: Array = []
