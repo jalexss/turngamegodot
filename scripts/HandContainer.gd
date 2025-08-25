@@ -36,8 +36,8 @@ func add_card(card: Node2D) -> void:
 	add_child(card)
 	print("DEBUG: Carta añadida. Total: ", get_child_count())
 	
-	# Reorganizar cartas en semi-esfera
-	_arrange_cards_in_hemisphere()
+	# Reorganizar cartas en semi-esfera (diferido para asegurar inicialización completa)
+	call_deferred("_arrange_cards_in_hemisphere")
 
 func clear_cards() -> void:
 	print("DEBUG: Limpiando cartas...")
@@ -218,7 +218,7 @@ func unfocus_card() -> void:
 		focus_tween.kill()
 	
 	# Restaurar carta a su posición original
-	var card = focused_card
+	var _card = focused_card  # Variable no usada pero necesaria para el flujo
 	focused_card = null
 	
 	# Reorganizar todas las cartas para restaurar posiciones

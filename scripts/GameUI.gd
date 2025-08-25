@@ -10,6 +10,7 @@ extends Control
 @onready var test_button = $TestButton as Button
 @onready var discard_button = $DiscardButton as Button
 @onready var energy_button = $EnergyButton as Button
+@onready var end_turn_button = $EndTurnButton as Button
 
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
@@ -93,7 +94,22 @@ func _create_missing_nodes() -> void:
 		energy_button = new_energy_button
 		# Conectar la señal
 		energy_button.pressed.connect(_on_energy_button_pressed)
-		print("DEBUG: EnergyButton creado y conectado")
+	
+	# Crear EndTurnButton si no existe
+	if not end_turn_button:
+		print("DEBUG: Creando EndTurnButton automáticamente...")
+		var new_end_turn_button = Button.new()
+		new_end_turn_button.name = "EndTurnButton"
+		new_end_turn_button.text = "🔄 TERMINAR TURNO"
+		new_end_turn_button.position = Vector2(1500, 50)  # Esquina superior derecha
+		new_end_turn_button.size = Vector2(200, 80)
+		# Estilo llamativo
+		new_end_turn_button.modulate = Color(1.2, 1.2, 0.8)  # Amarillo claro
+		add_child(new_end_turn_button)
+		end_turn_button = new_end_turn_button
+		# Conectar la señal
+		end_turn_button.pressed.connect(_on_end_turn_button_pressed)
+		print("DEBUG: EndTurnButton creado y conectado")
 	
 	# Crear DiscardButton si no existe
 	if not discard_button:
@@ -153,8 +169,8 @@ func _handle_mouse_press(mouse_pos: Vector2) -> void:
 			return
 		
 		# Si no se clickeó un personaje, verificar si se clickeó la carta para cancelar
-		var clicked_card = _get_top_card_at_position(mouse_pos)
-		if clicked_card and selected_card == clicked_card:
+		var clicked_card_targeting = _get_top_card_at_position(mouse_pos)
+		if clicked_card_targeting and selected_card == clicked_card_targeting:
 			_cancel_targeting()
 		return
 	
@@ -289,6 +305,22 @@ func _on_energy_button_pressed() -> void:
 		print("DEBUG: 3 de energía de prueba añadida (puede exceder límite)")
 	else:
 		print("DEBUG: ERROR - No se encontró el método add_energy_test en el nodo padre")
+
+# --- FUNCIÓN TERMINAR TURNO ---
+func _on_end_turn_button_pressed() -> void:
+	print("🔄 TERMINAR TURNO presionado!")
+	
+	# Cancelar cualquier targeting activo
+	if targeting_state != TargetingState.NONE:
+		_cancel_targeting()
+	
+	# Obtener referencia al nodo Game
+	var game_node = get_parent()
+	if game_node and game_node.has_method("end_player_turn"):
+		game_node.end_player_turn()
+		print("🔄 Turno del jugador terminado")
+	else:
+		print("DEBUG: ERROR - No se encontró el método end_player_turn en el nodo padre")
 
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
@@ -592,6 +624,41 @@ func _update_character_display(character: CharacterData) -> void:
 				slot.set_dead_state(true)
 				print("☠️ ", character.name, " ha sido marcado como muerto en la UI")
 			break
+
+# --- SISTEMA DE PREVIEW DE ACCIONES ENEMIGAS ---
+func show_enemy_action_previews(actions: Array) -> void:
+	"""Muestra las acciones que los enemigos van a realizar"""
+	print("📋 Mostrando preview de ", actions.size(), " acciones enemigas")
+	
+	# Limpiar previews anteriores
+	_clear_enemy_action_previews()
+	
+	# Agrupar acciones por enemigo
+	var actions_by_enemy = {}
+	for action in actions:
+		var enemy_index = action.enemy_index
+		if not actions_by_enemy.has(enemy_index):
+			actions_by_enemy[enemy_index] = []
+		actions_by_enemy[enemy_index].append(action)
+	
+	# Mostrar acciones en cada slot enemigo
+	for enemy_index in actions_by_enemy.keys():
+		if enemy_index < enemy_slots_nodes.size():
+			var slot = enemy_slots_nodes[enemy_index]
+			var enemy_actions = actions_by_enemy[enemy_index]
+			slot.show_action_previews(enemy_actions)
+
+func remove_enemy_action_preview(action: Dictionary) -> void:
+	"""Remueve una acción específica del preview"""
+	var enemy_index = action.enemy_index
+	if enemy_index < enemy_slots_nodes.size():
+		var slot = enemy_slots_nodes[enemy_index]
+		slot.remove_action_preview(action)
+
+func _clear_enemy_action_previews() -> void:
+	"""Limpia todos los previews de acciones enemigas"""
+	for slot in enemy_slots_nodes:
+		slot.clear_action_previews()
 
 # --- SISTEMA DE DESCARTE ---
 func _discard_card(card: Node2D) -> void:

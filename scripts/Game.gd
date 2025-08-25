@@ -6,24 +6,45 @@ const PLAYER_DECK_PATH = "res://data/player_deck.json"
 # Opciones de deck para el jugador
 @export_enum("Automático", "Balanceado", "Agresivo", "Defensivo", "Inicial") var player_deck_type: int = 0
 @export var testing_deck_id: int = -1  # si > 0 fuerza ese deck en vez de random
-@onready var deck = $Deck
-@onready var ui   = $GameUI as Control
 
+# --- NODOS ---
+@onready var deck = $Deck
+@onready var ui = $GameUI as Control
+@onready var player_manager = $Player
+@onready var enemy_manager = $Enemy
+
+# --- VARIABLES DE JUEGO ---
 var turn_num := 0
-var energy   := 0
-var max_energy := 3
 var player_chars : Array = []
 var enemy_chars  : Array = []
 var char_defs    : Dictionary = {}
 var enemy_defs   : Dictionary = {}
 
+# --- SISTEMA DE TURNOS ---
+enum TurnPhase { PLAYER, ENEMY }
+var current_phase: TurnPhase = TurnPhase.PLAYER
+
 func _ready() -> void:
-	# randomize() # Descomenta si necesitas inicializar la semilla aleatoria aquí
-	# cargar personajes y generar roster...
+	# Crear nodos si no existen
+	_create_missing_managers()
+	
+	# Cargar definiciones de personajes
 	char_defs  = _load_char_defs("res://data/characters.json")
-	enemy_defs = _load_char_defs("res://data/enemys.json") # Asegúrate que este JSON y su carga funcionen bien
+	enemy_defs = _load_char_defs("res://data/enemys.json")
 	player_chars = _generate_roster(char_defs, 1, 3)
-	enemy_chars  = _generate_roster(enemy_defs, 1, 5) # Ajusta el rango según tus necesidades
+	enemy_chars  = _generate_roster(enemy_defs, 1, 5)
+
+	# Configurar managers
+	if enemy_manager:
+		enemy_manager.set_enemy_characters(enemy_chars)
+		enemy_manager.actions_generated.connect(_on_enemy_actions_generated)
+		enemy_manager.action_executed.connect(_on_enemy_action_executed)
+		enemy_manager.turn_completed.connect(_on_enemy_turn_completed)
+	
+	if player_manager:
+		player_manager.energy_changed.connect(_on_player_energy_changed)
+		player_manager.hand_changed.connect(_on_player_hand_changed)
+		player_manager.card_played.connect(_on_player_card_played)
 
 	# Cargar deck del jugador
 	print("DEBUG: Cargando deck del jugador...")
@@ -39,25 +60,39 @@ func _ready() -> void:
 	
 	_start_turn()
 
+func _create_missing_managers() -> void:
+	"""Crea los nodos Player y Enemy si no existen"""
+	if not player_manager:
+		print("DEBUG: Creando Player manager...")
+		var new_player = preload("res://scripts/Player.gd").new()
+		new_player.name = "Player"
+		add_child(new_player)
+		player_manager = new_player
+	
+	if not enemy_manager:
+		print("DEBUG: Creando Enemy manager...")
+		var new_enemy = preload("res://scripts/Enemy.gd").new()
+		new_enemy.name = "Enemy"
+		add_child(new_enemy)
+		enemy_manager = new_enemy
+
 func _start_turn() -> void:
 	turn_num += 1
-	# Regenerar energía al máximo normal (no afecta energía de testing que excede el límite)
-	if energy < max_energy:
-		energy = max_energy
-		print("⚡ Energía regenerada a ", max_energy)
-	else:
-		print("⚡ Energía actual: ", energy, " (excede máximo normal de ", max_energy, ")")
+	current_phase = TurnPhase.PLAYER
 	
-	print("=== DEBUG: Iniciando turno ", turn_num, " ===")
+	print("=== 🎮 TURNO DEL JUGADOR ", turn_num, " ===")
 	ui.set_turn(turn_num)
-	ui.set_energy(energy, max_energy)
 	ui.clear_hand()
 	ui.update_player_chars(player_chars)
 	ui.update_enemy_chars(enemy_chars)
-	print("DEBUG: Intentando robar 4 cartas...")
-	for i in range(4):
-		print("DEBUG: Robando carta ", i + 1, "/4")
-		_draw_and_show()
+	
+	# Iniciar turno del jugador
+	if player_manager:
+		player_manager.start_turn()
+	
+	# Generar acciones enemigas para preview
+	if enemy_manager:
+		enemy_manager.generate_actions()
 
 func _draw_and_show() -> void:
 	var cd = deck.draw()
@@ -203,44 +238,94 @@ func _create_super_heal_card() -> Node2D:
 	return card
 
 # --- SISTEMA DE ENERGÍA ---
+# --- FUNCIONES DE ENERGÍA (DELEGADAS AL PLAYER) ---
 func can_afford_card(card_cost: int) -> bool:
-	"""Verifica si el jugador puede pagar el coste de una carta"""
-	return energy >= card_cost
+	"""Verifica si el jugador puede pagar una carta"""
+	if player_manager:
+		return player_manager.can_afford_card(card_cost)
+	return false
 
 func use_energy(cost: int) -> bool:
-	"""Usa energía para una carta. Retorna true si se pudo usar"""
-	if energy >= cost:
-		energy -= cost
-		ui.set_energy(energy, max_energy)
-		print("⚡ Energía usada: ", cost, " → Energía restante: ", energy, "/", max_energy)
-		return true
-	else:
-		print("❌ Energía insuficiente: ", energy, "/", cost)
-		return false
+	"""Usa energía para jugar una carta"""
+	if player_manager:
+		return player_manager.use_energy(cost)
+	return false
 
 func add_energy(amount: int) -> void:
-	"""Añade energía respetando el límite máximo (regeneración normal)"""
-	energy = min(max_energy, energy + amount)
-	ui.set_energy(energy, max_energy)
-	print("⚡ Energía añadida: ", amount, " → Energía actual: ", energy, "/", max_energy)
+	"""Añade energía respetando el límite máximo"""
+	if player_manager:
+		player_manager.add_energy(amount)
 
 func add_energy_test(amount: int) -> void:
-	"""Añade energía sin límite (solo para testing) - máximo absoluto 99"""
-	var old_energy = energy
-	energy = min(99, energy + amount)  # Límite absoluto de 99
-	ui.set_energy(energy, max_energy)
-	print("🧪 Energía de prueba añadida: ", amount, " → Energía actual: ", energy, "/", max_energy, " (¡EXCEDE LÍMITE!)")
-	
-	if energy > max_energy:
-		print("⚠️ MODO TESTING: Energía excede el máximo normal (", energy, " > ", max_energy, ")")
+	"""Añade energía sin límite (testing)"""
+	if player_manager:
+		player_manager.add_energy_test(amount)
 
 func get_current_energy() -> int:
 	"""Retorna la energía actual"""
-	return energy
+	if player_manager:
+		return player_manager.get_energy()
+	return 0
 
 func get_max_energy() -> int:
 	"""Retorna la energía máxima"""
-	return max_energy
+	if player_manager:
+		return player_manager.get_max_energy()
+	return 3
+
+# --- SISTEMA DE TURNOS ENEMIGOS ---
+func end_player_turn() -> void:
+	"""Termina el turno del jugador e inicia el turno enemigo"""
+	print("🔄 Terminando turno del jugador...")
+	current_phase = TurnPhase.ENEMY
+	
+	# Ejecutar turno enemigo
+	if enemy_manager:
+		enemy_manager.execute_turn()
+
+# --- CALLBACKS DE MANAGERS ---
+func _on_player_energy_changed(current: int, maximum: int) -> void:
+	"""Callback cuando cambia la energía del jugador"""
+	ui.set_energy(current, maximum)
+
+func _on_player_hand_changed(cards: Array) -> void:
+	"""Callback cuando cambia la mano del jugador"""
+	# Actualizar UI de cartas
+	ui.clear_hand()
+	for card_data in cards:
+		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+		card.set_data(card_data)
+		ui.add_card_to_hand(card)
+
+func _on_player_card_played(card_data) -> void:
+	"""Callback cuando el jugador juega una carta"""
+	print("🃏 Carta jugada por el jugador: ", card_data.name)
+
+func _on_enemy_actions_generated(actions: Array) -> void:
+	"""Callback cuando se generan las acciones enemigas"""
+	ui.show_enemy_action_previews(actions)
+
+func _on_enemy_action_executed(action: Dictionary) -> void:
+	"""Callback cuando se ejecuta una acción enemiga"""
+	ui.remove_enemy_action_preview(action)
+
+func _on_enemy_turn_completed() -> void:
+	"""Callback cuando termina el turno enemigo"""
+	print("✅ Turno enemigo completado, iniciando nuevo turno del jugador")
+	_start_turn()
+
+# --- GETTERS PARA MANAGERS ---
+func get_player_characters() -> Array:
+	"""Retorna los personajes del jugador"""
+	return player_chars
+
+func get_enemy_characters() -> Array:
+	"""Retorna los personajes enemigos"""
+	return enemy_chars
+
+# --- FUNCIONES OBSOLETAS REMOVIDAS ---
+# Las funciones de generación y ejecución de acciones enemigas
+# ahora están en Enemy.gd para mejor organización
 
 # Métodos auxiliares para personajes/enemigos
 func _load_char_defs(path: String) -> Dictionary:
