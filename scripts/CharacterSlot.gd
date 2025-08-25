@@ -12,6 +12,7 @@ signal character_clicked(character_data)
 
 var character_data: CharacterData
 var is_targeting_highlight: bool = false
+var is_dead: bool = false
 
 func _ready():
     # Conectar las señales del ratón a nuestras funciones
@@ -92,3 +93,23 @@ func _is_mouse_over() -> bool:
     var mouse_pos = get_global_mouse_position()
     var rect = get_global_rect()
     return rect.has_point(mouse_pos)
+
+# --- SISTEMA DE MUERTE ---
+func set_dead_state(dead: bool) -> void:
+    """Marca el personaje como muerto o vivo"""
+    is_dead = dead
+    
+    if dead:
+        # Efecto visual de muerte
+        portrait.modulate = Color(0.3, 0.3, 0.3, 0.7)  # Gris y semi-transparente
+        name_label.modulate = Color.RED
+        health_bar.modulate = Color.RED
+        
+        # Quitar cualquier highlight
+        hover_effect.visible = false
+        is_targeting_highlight = false
+    else:
+        # Restaurar colores normales
+        portrait.modulate = Color(1, 1, 1, 0.666667)  # Color original
+        name_label.modulate = Color.WHITE
+        health_bar.modulate = Color.WHITE

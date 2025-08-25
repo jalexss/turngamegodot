@@ -64,10 +64,20 @@ func _draw_and_show() -> void:
 		print("DEBUG: ERROR - No hay cartas en el deck")
 
 # --- FUNCIÓN DE PRUEBAS ---
-func _create_test_card() -> Node2D:
-	print("DEBUG: _create_test_card() llamado")
+func _create_test_card(create_damage_ally_card: bool = false, create_super_damage_card: bool = false, create_super_heal_card: bool = false) -> Node2D:
+	print("DEBUG: _create_test_card() llamado - Aliados: ", create_damage_ally_card, " Súper daño: ", create_super_damage_card, " Súper curación: ", create_super_heal_card)
 	
-	# Obtener una carta aleatoria disponible para el jugador
+	if create_super_heal_card:
+		# Crear carta súper curación
+		return _create_super_heal_card()
+	elif create_super_damage_card:
+		# Crear carta súper poderosa
+		return _create_super_damage_card()
+	elif create_damage_ally_card:
+		# Crear carta especial que daña aliados
+		return _create_special_damage_ally_card()
+	
+	# Crear carta normal
 	var player_cards = _get_player_available_cards()
 	print("DEBUG: Cartas disponibles para test: ", player_cards.size())
 	
@@ -103,6 +113,87 @@ func _create_test_card() -> Node2D:
 		return card
 	
 	return null
+
+func _create_special_damage_ally_card() -> Node2D:
+	"""Crea una carta especial que puede dañar aliados"""
+	print("DEBUG: Creando carta especial de daño a aliados")
+	
+	# Crear CardData personalizada
+	var special_card_data = preload("res://scripts/CardData.gd").new()
+	special_card_data.id = 999  # ID especial
+	special_card_data.name = "Daño Aliado (TEST)"
+	special_card_data.cost = 1
+	special_card_data.description = "CARTA DE PRUEBA: Inflige 3 de daño a un aliado."
+	special_card_data.card_type = CardData.CardType.ATTACK
+	special_card_data.power = 3
+	
+	# Crear Array tipado correctamente para effects
+	var effects_array: Array[Dictionary] = []
+	effects_array.append({"type": "DAMAGE", "value": 5})  # Daño más alto para testing
+	special_card_data.effects = effects_array
+	
+	print("DEBUG: Carta especial - Effects creados: ", effects_array)
+	
+	# Crear la carta visual
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(special_card_data)
+	
+	print("DEBUG: Carta especial creada: ", special_card_data.name)
+	return card
+
+func _create_super_damage_card() -> Node2D:
+	"""Crea una carta súper poderosa para testing"""
+	print("DEBUG: Creando carta súper poderosa")
+	
+	# Crear CardData personalizada
+	var super_card_data = preload("res://scripts/CardData.gd").new()
+	super_card_data.id = 998  # ID especial
+	super_card_data.name = "MEGA DAÑO (TEST)"
+	super_card_data.cost = 2
+	super_card_data.description = "CARTA DE PRUEBA: Inflige 15 de daño puro (ignora defensa)."
+	super_card_data.card_type = CardData.CardType.ATTACK
+	super_card_data.power = 15
+	
+	# Crear Array tipado correctamente para effects
+	var effects_array: Array[Dictionary] = []
+	effects_array.append({"type": "DAMAGE", "value": 15})  # Daño masivo
+	super_card_data.effects = effects_array
+	
+	print("DEBUG: Carta súper - Effects creados: ", effects_array)
+	
+	# Crear la carta visual
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(super_card_data)
+	
+	print("DEBUG: Carta súper creada: ", super_card_data.name)
+	return card
+
+func _create_super_heal_card() -> Node2D:
+	"""Crea una carta súper curación para testing"""
+	print("DEBUG: Creando carta súper curación")
+	
+	# Crear CardData personalizada
+	var super_heal_data = preload("res://scripts/CardData.gd").new()
+	super_heal_data.id = 997  # ID especial
+	super_heal_data.name = "MEGA CURACIÓN (TEST)"
+	super_heal_data.cost = 2
+	super_heal_data.description = "CARTA DE PRUEBA: Cura 20 HP a un aliado."
+	super_heal_data.card_type = CardData.CardType.HEAL
+	super_heal_data.power = 20
+	
+	# Crear Array tipado correctamente para effects
+	var effects_array: Array[Dictionary] = []
+	effects_array.append({"type": "HEAL", "value": 20})  # Curación masiva
+	super_heal_data.effects = effects_array
+	
+	print("DEBUG: Carta súper curación - Effects creados: ", effects_array)
+	
+	# Crear la carta visual
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(super_heal_data)
+	
+	print("DEBUG: Carta súper curación creada: ", super_heal_data.name)
+	return card
 
 # Métodos auxiliares para personajes/enemigos
 func _load_char_defs(path: String) -> Dictionary:

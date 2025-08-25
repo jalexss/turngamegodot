@@ -235,11 +235,15 @@ func _on_test_button_pressed() -> void:
 		print("DEBUG: Mano llena, no se puede añadir más cartas")
 		return
 	
-	# Crear una carta de prueba aleatoria
+	# Crear carta de test especial (alterna entre tipos)
 	var game_node = get_parent()
 	if game_node and game_node.has_method("_create_test_card"):
 		print("DEBUG: Creando carta de test...")
-		var test_card = game_node._create_test_card()
+		var hand_count = get_hand_size()
+		var use_damage_ally_card = (hand_count % 4 == 0)  # Cada 4 cartas, crear carta de daño a aliados
+		var use_super_damage_card = (hand_count % 5 == 0)  # Cada 5 cartas, crear carta súper poderosa
+		var use_super_heal_card = (hand_count % 6 == 0)    # Cada 6 cartas, crear carta súper curación
+		var test_card = game_node._create_test_card(use_damage_ally_card, use_super_damage_card, use_super_heal_card)
 		if test_card:
 			print("DEBUG: Carta de test creada exitosamente")
 			add_card_to_hand(test_card)
@@ -304,13 +308,23 @@ func _get_valid_targets_for_card(card_data: CardData) -> Array:
 	"""Determina qué personajes son targets válidos para una carta"""
 	var valid_targets: Array = []
 	
+	# Cartas especiales de prueba
+	if card_data.id == 999:
+		print("🔍 Carta especial detectada - puede atacar aliados")
+		valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
+		return valid_targets
+	elif card_data.id == 997:
+		print("🔍 Carta súper curación detectada - cura aliados")
+		valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
+		return valid_targets
+	
 	match card_data.card_type:
 		CardData.CardType.ATTACK, CardData.CardType.DEBUFF:
-			# Cartas ofensivas van a enemigos
-			valid_targets = enemy_slots_nodes.filter(func(slot): return slot.character_data != null)
+			# Cartas ofensivas van a enemigos VIVOS
+			valid_targets = enemy_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
 		CardData.CardType.HEAL, CardData.CardType.DEFENSE, CardData.CardType.BUFF:
-			# Cartas defensivas/de apoyo van a aliados
-			valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null)
+			# Cartas defensivas/de apoyo van a aliados VIVOS
+			valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
 		_:
 			# Otros tipos por ahora no tienen targeting específico
 			pass
@@ -394,43 +408,92 @@ func _on_character_targeted(character_data: CharacterData) -> void:
 func _apply_card_effects(card_data: CardData, target_character: CharacterData) -> void:
 	"""Aplica los efectos de una carta a un personaje"""
 	print("🎴 Aplicando efectos de ", card_data.name, " a ", target_character.name)
+	print("🔍 DEBUG EFECTOS:")
+	print("  - Carta ID: ", card_data.id)
+	print("  - Power: ", card_data.power)
+	print("  - Effects array size: ", card_data.effects.size())
+	print("  - Effects content: ", card_data.effects)
 	
-	for effect in card_data.effects:
-		if not effect is Dictionary:
-			continue
+	if card_data.effects.is_empty():
+		print("⚠️ ADVERTENCIA: La carta no tiene efectos definidos!")
+		print("  - Usando power como daño por defecto: ", card_data.power)
+		if card_data.card_type == CardData.CardType.ATTACK:
+			_apply_damage(target_character, card_data.power)
+		elif card_data.card_type == CardData.CardType.HEAL:
+			_apply_heal(target_character, card_data.power)
+		else:
+			print("  - Tipo de carta no soportado para fallback: ", card_data.card_type)
+	else:
+		for i in range(card_data.effects.size()):
+			var effect = card_data.effects[i]
+			print("  - Efecto ", i, ": ", effect)
 			
-		var effect_type = effect.get("type", "")
-		var effect_value = effect.get("value", 0)
-		
-		match effect_type:
-			"DAMAGE":
-				_apply_damage(target_character, effect_value)
-			"HEAL":
-				_apply_heal(target_character, effect_value)
-			"SHIELD":
-				_apply_shield(target_character, effect_value)
-			"BUFF":
-				_apply_buff(target_character, effect_value)
-			"DEBUFF":
-				_apply_debuff(target_character, effect_value)
-			_:
-				print("⚠️ Efecto desconocido: ", effect_type)
+			if not effect is Dictionary:
+				print("    ⚠️ Efecto no es Dictionary, omitiendo")
+				continue
+				
+			var effect_type = effect.get("type", "")
+			var effect_value = effect.get("value", 0)
+			print("    - Tipo: ", effect_type, " Valor: ", effect_value)
+			
+			match effect_type:
+				"DAMAGE":
+					_apply_damage(target_character, effect_value)
+				"HEAL":
+					_apply_heal(target_character, effect_value)
+				"SHIELD":
+					_apply_shield(target_character, effect_value)
+				"BUFF":
+					_apply_buff(target_character, effect_value)
+				"DEBUFF":
+					_apply_debuff(target_character, effect_value)
+				_:
+					print("    ⚠️ Efecto desconocido: ", effect_type)
 	
 	# Actualizar UI del personaje
 	_update_character_display(target_character)
 
 func _apply_damage(character: CharacterData, damage: int) -> void:
 	"""Aplica daño a un personaje"""
+	print("🔍 DEBUG DAÑO:")
+	print("  - Personaje: ", character.name)
+	print("  - HP inicial: ", character.hp, "/", character.max_hp)
+	print("  - Daño base: ", damage)
+	print("  - Defensa: ", character.defense)
+	
 	var actual_damage = max(0, damage - character.defense)
+	print("  - Daño real (después de defensa): ", actual_damage)
+	
+	var old_hp = character.hp
 	character.hp = max(0, character.hp - actual_damage)
-	print("💥 ", character.name, " recibe ", actual_damage, " de daño (HP: ", character.hp, "/", character.max_hp, ")")
+	var hp_lost = old_hp - character.hp
+	
+	print("  - HP perdido: ", hp_lost)
+	print("  - HP final: ", character.hp, "/", character.max_hp)
+	
+	if character.hp == 0:
+		print("  ☠️ PERSONAJE DERROTADO!")
+	
+	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
 
 func _apply_heal(character: CharacterData, heal: int) -> void:
 	"""Cura a un personaje"""
+	print("🔍 DEBUG CURACIÓN:")
+	print("  - Personaje: ", character.name)
+	print("  - HP inicial: ", character.hp, "/", character.max_hp)
+	print("  - Curación base: ", heal)
+	
 	var old_hp = character.hp
 	character.hp = min(character.max_hp, character.hp + heal)
 	var actual_heal = character.hp - old_hp
-	print("💚 ", character.name, " se cura ", actual_heal, " HP (HP: ", character.hp, "/", character.max_hp, ")")
+	var overheal = heal - actual_heal
+	
+	print("  - HP curado real: ", actual_heal)
+	if overheal > 0:
+		print("  - Sobrecuración (desperdiciada): ", overheal)
+	print("  - HP final: ", character.hp, "/", character.max_hp)
+	
+	print("💚 ", character.name, " se cura ", actual_heal, " HP → HP: ", character.hp, "/", character.max_hp)
 
 func _apply_shield(character: CharacterData, shield: int) -> void:
 	"""Aplica escudo a un personaje (por ahora solo aumenta defensa temporalmente)"""
@@ -453,6 +516,11 @@ func _update_character_display(character: CharacterData) -> void:
 	for slot in player_slots_nodes + enemy_slots_nodes:
 		if slot.character_data == character:
 			slot.set_character_data(character)  # Esto debería actualizar la UI
+			
+			# Marcar como muerto si HP = 0
+			if character.hp <= 0 and slot.has_method("set_dead_state"):
+				slot.set_dead_state(true)
+				print("☠️ ", character.name, " ha sido marcado como muerto en la UI")
 			break
 
 # --- SISTEMA DE DESCARTE ---
