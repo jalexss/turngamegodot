@@ -27,6 +27,11 @@ var combat_log_scroll: ScrollContainer = null
 var combat_log_content: VBoxContainer = null
 var combat_log_visible: bool = false
 
+# --- NODOS DE GAME OVER ---
+var game_over_overlay: Panel = null
+var game_over_label: Label = null
+var game_over_active: bool = false
+
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
 var enemy_slots_nodes: Array = []
@@ -72,6 +77,9 @@ func _ready() -> void:
 	# Crear topbar y sistema de log primero
 	_create_topbar_system()
 	
+	# Crear pantalla de game over
+	_create_game_over_overlay()
+	
 	# Crear nodos faltantes automáticamente
 	_create_missing_nodes()
 	
@@ -100,23 +108,25 @@ func _process(delta: float) -> void:
 
 func _update_timers(delta: float) -> void:
 	"""Actualiza ambos cronómetros"""
-	# Solo actualizar si no hay ataque de presión activo
-	if not pressure_attack_active:
-		# Actualizar cronómetro de partida (siempre cuenta hacia arriba)
-		match_timer += delta
-		_update_match_timer_display()
+	# No actualizar si el juego ha terminado o hay ataque de presión activo
+	if game_over_active or pressure_attack_active:
+		return
+	
+	# Actualizar cronómetro de partida (siempre cuenta hacia arriba)
+	match_timer += delta
+	_update_match_timer_display()
+	
+	# Actualizar cronómetro de presión SOLO durante el turno del jugador
+	if is_player_turn:
+		pressure_timer -= delta
+		_update_pressure_timer_display()
 		
-		# Actualizar cronómetro de presión SOLO durante el turno del jugador
-		if is_player_turn:
-			pressure_timer -= delta
-			_update_pressure_timer_display()
-			
-			# Verificar si el cronómetro de presión llegó a 0
-			if pressure_timer <= 0.0:
-				_trigger_pressure_attack()
-		else:
-			# Durante turno enemigo, solo actualizar el display sin cambiar el valor
-			_update_pressure_timer_display()
+		# Verificar si el cronómetro de presión llegó a 0
+		if pressure_timer <= 0.0:
+			_trigger_pressure_attack()
+	else:
+		# Durante turno enemigo, solo actualizar el display sin cambiar el valor
+		_update_pressure_timer_display()
 
 func _update_match_timer_display() -> void:
 	"""Actualiza el display del cronómetro de partida"""
@@ -486,9 +496,66 @@ func _create_combat_log_panel() -> void:
 	
 	print("✅ Panel de log de combate creado")
 
+func _create_game_over_overlay() -> void:
+	"""Crea la pantalla de game over"""
+	game_over_overlay = Panel.new()
+	game_over_overlay.name = "GameOverOverlay"
+	game_over_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	game_over_overlay.visible = false
+	game_over_overlay.z_index = 200  # Por encima de todo
+	
+	# Fondo oscuro semi-transparente
+	var overlay_style = StyleBoxFlat.new()
+	overlay_style.bg_color = Color(0.0, 0.0, 0.0, 0.8)  # Negro con 80% opacidad
+	game_over_overlay.add_theme_stylebox_override("panel", overlay_style)
+	
+	add_child(game_over_overlay)
+	
+	# Container principal centrado
+	var center_container = CenterContainer.new()
+	center_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	game_over_overlay.add_child(center_container)
+	
+	# VBox para organizar contenido verticalmente
+	var content_vbox = VBoxContainer.new()
+	content_vbox.add_theme_constant_override("separation", 30)
+	center_container.add_child(content_vbox)
+	
+	# Label principal del resultado
+	game_over_label = Label.new()
+	game_over_label.name = "GameOverLabel"
+	game_over_label.text = "GAME OVER"
+	game_over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	game_over_label.add_theme_font_size_override("font_size", 72)
+	game_over_label.add_theme_color_override("font_color", Color.WHITE)
+	
+	# Efecto de sombra para el texto
+	game_over_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	game_over_label.add_theme_constant_override("shadow_offset_x", 4)
+	game_over_label.add_theme_constant_override("shadow_offset_y", 4)
+	
+	content_vbox.add_child(game_over_label)
+	
+	# Label secundario con información adicional
+	var info_label = Label.new()
+	info_label.name = "GameOverInfoLabel"
+	info_label.text = "Presiona ESC para continuar"
+	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_label.add_theme_font_size_override("font_size", 24)
+	info_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 1.0))
+	content_vbox.add_child(info_label)
+	
+	print("✅ Pantalla de game over creada")
+
 func _input(event: InputEvent) -> void:
-	# No procesar input de cartas si no son interactivas
-	if not cards_interactive:
+	# Manejar input de game over primero
+	if game_over_active and event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ESCAPE:
+			hide_game_over()
+			return
+	
+	# No procesar input de cartas si no son interactivas o si hay game over
+	if not cards_interactive or game_over_active:
 		return
 	
 	if event is InputEventMouseMotion:
@@ -993,6 +1060,48 @@ func pause_timers(paused: bool) -> void:
 		add_combat_log_entry("▶️ Juego reanudado - Cronómetros activos")
 	
 	_update_pressure_timer_display()  # Actualizar display
+
+# --- SISTEMA DE GAME OVER ---
+func show_game_over(victory: bool) -> void:
+	"""Muestra la pantalla de game over"""
+	if not game_over_overlay or not game_over_label:
+		print("❌ Pantalla de game over no está inicializada")
+		return
+	
+	game_over_active = true
+	
+	# Pausar cronómetros
+	pause_timers(true)
+	
+	# Configurar mensaje según resultado
+	if victory:
+		game_over_label.text = "¡GANASTE!"
+		game_over_label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2, 1.0))  # Verde brillante
+		add_combat_log_entry("🎉 ¡VICTORIA! El jugador ha ganado la partida")
+	else:
+		game_over_label.text = "PERDISTE"
+		game_over_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2, 1.0))  # Rojo brillante
+		add_combat_log_entry("💀 ¡DERROTA! El jugador ha perdido la partida")
+	
+	# Mostrar overlay
+	game_over_overlay.visible = true
+	
+	# Deshabilitar todas las interacciones
+	_set_cards_interactive(false)
+	_block_player_actions(true)
+	
+	print("🎮 Game Over mostrado: ", "Victoria" if victory else "Derrota")
+
+func hide_game_over() -> void:
+	"""Oculta la pantalla de game over"""
+	if game_over_overlay:
+		game_over_overlay.visible = false
+		game_over_active = false
+		print("🎮 Pantalla de game over ocultada")
+
+func is_game_over() -> bool:
+	"""Retorna si el juego ha terminado"""
+	return game_over_active
 
 func get_current_hand_size() -> int:
 	"""Obtiene el tamaño actual de la mano (visual)"""

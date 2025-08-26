@@ -258,6 +258,10 @@ func _apply_damage_to_character(character, damage: int) -> void:
 	# Actualizar UI
 	if ui_node and ui_node.has_method("_update_character_display"):
 		ui_node._update_character_display(character)
+	
+	# Verificar game over después de aplicar daño
+	if game_node and game_node.has_method("_check_game_over"):
+		game_node._check_game_over()
 
 func _apply_heal_to_character(character, heal: int) -> void:
 	"""Aplica curación a un personaje"""

@@ -904,25 +904,12 @@ func _end_game(result: String) -> void:
 	if ui and ui.has_method("stop_match_timer"):
 		ui.stop_match_timer()
 	
-	# Agregar resultado al log
-	var result_message = ""
-	match result:
-		"VICTORIA":
-			result_message = "🎉 ¡VICTORIA! Todos los enemigos han sido derrotados"
-		"DERROTA":
-			result_message = "💀 ¡DERROTA! Todos los aliados han caído"
-		"EMPATE":
-			result_message = "🤝 ¡EMPATE! Ambos bandos han caído"
-	
-	if ui and ui.has_method("add_combat_log_entry"):
-		ui.add_combat_log_entry(result_message)
-	
-	# Llamar al método original de UI si existe
-	if ui and ui.has_method("set_game_over"):
-		ui.set_game_over(result == "DERROTA")
+	# Mostrar pantalla de game over
+	if ui and ui.has_method("show_game_over"):
+		var victory = (result == "VICTORIA")
+		ui.show_game_over(victory)
 	
 	# Aquí puedes agregar lógica adicional como:
-	# - Mostrar pantalla de game over
 	# - Guardar estadísticas
 	# - Reiniciar el juego
 	# - etc.
