@@ -19,6 +19,7 @@ var player_slots_nodes: Array = []
 var enemy_slots_nodes: Array = []
 var hovered_card: Node2D = null
 var last_hovered_card: Node2D = null
+var cards_interactive: bool = true  # Controla si las cartas son interactivas
 
 # Configuración de la mano
 const MAX_HAND_SIZE: int = 8  # Reducido para mejor visibilidad
@@ -160,6 +161,10 @@ func _create_missing_nodes() -> void:
 		print("DEBUG: DiscardButton creado")
 
 func _input(event: InputEvent) -> void:
+	# No procesar input de cartas si no son interactivas
+	if not cards_interactive:
+		return
+	
 	if event is InputEventMouseMotion:
 		_handle_mouse_motion(event.global_position)
 		# Manejar drag durante movimiento
@@ -408,6 +413,70 @@ func _get_player_data_hand_size() -> int:
 	if game_node and game_node.has_method("get_player_hand_size"):
 		return game_node.get_player_hand_size()
 	return -1  # Error
+
+# --- CONTROL DE ESTADO DE UI ---
+func set_player_turn_active(active: bool) -> void:
+	"""Habilita/deshabilita controles durante el turno del jugador"""
+	print("🎮 Turno del jugador activo: ", active)
+	
+	# Botones que se deshabilitan durante turno enemigo
+	if test_button:
+		test_button.disabled = not active
+		test_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
+	
+	if energy_button:
+		energy_button.disabled = not active
+		energy_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
+	
+	if end_turn_button:
+		end_turn_button.disabled = not active
+		end_turn_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
+	
+	# Las cartas también se deshabilitan
+	_set_cards_interactive(active)
+	
+	print("✅ UI actualizada para turno ", "del jugador" if active else "enemigo")
+
+func _set_cards_interactive(interactive: bool) -> void:
+	"""Habilita/deshabilita interacción con cartas"""
+	cards_interactive = interactive
+	print("🃏 Cartas interactivas: ", interactive)
+	
+	# Si hay una carta en focus y se deshabilita, quitarla
+	if not interactive and hand_container:
+		hand_container.unfocus_card()
+
+func set_game_over(player_defeated: bool) -> void:
+	"""Deshabilita toda la UI cuando el juego termina"""
+	print("💀 GAME OVER - Jugador derrotado: ", player_defeated)
+	
+	# Deshabilitar TODOS los botones excepto mazo y descarte
+	if test_button:
+		test_button.disabled = true
+		test_button.modulate = Color(0.3, 0.3, 0.3)
+	
+	if energy_button:
+		energy_button.disabled = true
+		energy_button.modulate = Color(0.3, 0.3, 0.3)
+	
+	if end_turn_button:
+		end_turn_button.disabled = true
+		end_turn_button.modulate = Color(0.3, 0.3, 0.3)
+	
+	# Deshabilitar cartas completamente
+	_set_cards_interactive(false)
+	
+	print("💀 Toda la UI deshabilitada - GAME OVER")
+
+func force_reorganize_hand() -> void:
+	"""Fuerza la reorganización de las cartas en mano"""
+	if hand_container:
+		print("🔄 Forzando reorganización de cartas...")
+		hand_container.call_deferred("_arrange_cards_in_hemisphere")
+
+func get_pending_cards_count() -> int:
+	"""Retorna la cantidad de cartas pendientes en overflow"""
+	return pending_cards.size()
 
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
@@ -664,6 +733,11 @@ func _apply_damage(character: CharacterData, damage: int) -> void:
 		print("  ☠️ PERSONAJE DERROTADO!")
 	
 	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
+	
+	# Verificar game over después de aplicar daño
+	var game_node = get_parent()
+	if game_node and game_node.has_method("_check_game_over"):
+		game_node._check_game_over()
 
 func _apply_heal(character: CharacterData, heal: int) -> void:
 	"""Cura a un personaje"""
@@ -791,6 +865,17 @@ func hide_hand_full_message() -> void:
 	if message_label:
 		message_label.visible = false
 		print("✅ Mensaje de mano llena ocultado")
+
+func show_overflow_blocking_message() -> void:
+	"""Muestra mensaje cuando el overflow bloquea el robo de cartas"""
+	if overflow_button:
+		# Hacer que el botón parpadee para llamar la atención
+		var tween = create_tween()
+		tween.set_loops(3)
+		tween.tween_property(overflow_button, "modulate", Color.YELLOW, 0.3)
+		tween.tween_property(overflow_button, "modulate", Color(1.2, 1.0, 0.8), 0.3)
+	
+	print("⚠️ Overflow bloqueando robo de cartas - Botón parpadeando")
 
 # --- SISTEMA DE DESCARTE ---
 func _discard_card(card: Node2D) -> void:

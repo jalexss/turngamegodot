@@ -84,6 +84,10 @@ func _start_turn() -> void:
 	
 	print("=== 🎮 TURNO DEL JUGADOR ", turn_num, " ===")
 	ui.set_turn(turn_num)
+	
+	# Habilitar UI para turno del jugador
+	ui.set_player_turn_active(true)
+	
 	# NO limpiar la mano aquí - el Player manager se encarga de las cartas
 	ui.update_player_chars(player_chars)
 	ui.update_enemy_chars(enemy_chars)
@@ -281,6 +285,9 @@ func end_player_turn() -> void:
 	print("🔄 Terminando turno del jugador...")
 	current_phase = TurnPhase.ENEMY
 	
+	# Deshabilitar UI durante turno enemigo
+	ui.set_player_turn_active(false)
+	
 	# Ejecutar turno enemigo
 	if enemy_manager:
 		enemy_manager.execute_turn()
@@ -355,6 +362,35 @@ func get_player_hand_size() -> int:
 	if player_manager and player_manager.has_method("get_hand_size"):
 		return player_manager.get_hand_size()
 	return -1
+
+func _check_game_over() -> void:
+	"""Verifica si el juego ha terminado"""
+	var player_alive = false
+	var enemy_alive = false
+	
+	# Verificar si hay personajes del jugador vivos
+	for character in player_chars:
+		if character.hp > 0:
+			player_alive = true
+			break
+	
+	# Verificar si hay enemigos vivos
+	for character in enemy_chars:
+		if character.hp > 0:
+			enemy_alive = true
+			break
+	
+	# Game Over si todos los personajes del jugador están muertos
+	if not player_alive:
+		print("💀 GAME OVER - Todos los personajes del jugador han muerto")
+		ui.set_game_over(true)
+		return
+	
+	# Victoria si todos los enemigos están muertos
+	if not enemy_alive:
+		print("🎉 VICTORIA - Todos los enemigos han sido derrotados")
+		ui.set_game_over(false)
+		return
 
 # --- SISTEMA DE DECK DE 20 CARTAS ---
 func _create_20_card_deck() -> Array:

@@ -37,9 +37,19 @@ func start_turn() -> void:
 	
 	energy_changed.emit(energy, max_energy)
 	
-	# Robar cartas (NO limpiar la mano, solo añadir cartas nuevas)
+	# Verificar si hay cartas pendientes antes de robar
 	print("🃏 Mano actual: ", hand_cards.size(), " cartas")
-	_draw_cards(3)
+	
+	if _has_pending_cards():
+		print("⚠️ HAY CARTAS PENDIENTES - No se robarán cartas nuevas")
+		print("📥 Usa el botón de overflow para añadir las cartas pendientes primero")
+		
+		# Mostrar feedback visual al jugador
+		if ui_node and ui_node.has_method("show_overflow_blocking_message"):
+			ui_node.show_overflow_blocking_message()
+	else:
+		print("✅ No hay cartas pendientes - Robando 3 cartas nuevas")
+		_draw_cards(3)
 
 func can_afford_card(cost: int) -> bool:
 	"""Verifica si el jugador puede pagar una carta"""
@@ -241,3 +251,13 @@ func get_max_energy() -> int:
 
 func get_hand_cards() -> Array:
 	return hand_cards.duplicate()
+
+func _has_pending_cards() -> bool:
+	"""Verifica si hay cartas pendientes en overflow"""
+	if ui_node and ui_node.has_method("get_pending_cards_count"):
+		var pending_count = ui_node.get_pending_cards_count()
+		print("🔍 Cartas pendientes en UI: ", pending_count)
+		return pending_count > 0
+	
+	print("⚠️ No se pudo verificar cartas pendientes")
+	return false
