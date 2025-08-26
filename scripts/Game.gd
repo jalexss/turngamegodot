@@ -685,13 +685,13 @@ func _check_game_over() -> void:
 	# Game Over si todos los personajes del jugador están muertos
 	if not player_alive:
 		print("💀 GAME OVER - Todos los personajes del jugador han muerto")
-		ui.set_game_over(true)
+		_end_game("DERROTA")
 		return
 	
 	# Victoria si todos los enemigos están muertos
 	if not enemy_alive:
 		print("🎉 VICTORIA - Todos los enemigos han sido derrotados")
-		ui.set_game_over(false)
+		_end_game("VICTORIA")
 		return
 
 # --- SISTEMA DE DECK DE 20 CARTAS ---
@@ -895,3 +895,34 @@ func _on_character_selected(char_data: CharacterData):
 	# Delegar al UI para manejar el targeting
 	if ui.has_method("_on_character_targeted"):
 		ui._on_character_targeted(char_data)
+
+func _end_game(result: String) -> void:
+	"""Termina el juego con el resultado especificado"""
+	print("🎮 Juego terminado: ", result)
+	
+	# Detener cronómetros
+	if ui and ui.has_method("stop_match_timer"):
+		ui.stop_match_timer()
+	
+	# Agregar resultado al log
+	var result_message = ""
+	match result:
+		"VICTORIA":
+			result_message = "🎉 ¡VICTORIA! Todos los enemigos han sido derrotados"
+		"DERROTA":
+			result_message = "💀 ¡DERROTA! Todos los aliados han caído"
+		"EMPATE":
+			result_message = "🤝 ¡EMPATE! Ambos bandos han caído"
+	
+	if ui and ui.has_method("add_combat_log_entry"):
+		ui.add_combat_log_entry(result_message)
+	
+	# Llamar al método original de UI si existe
+	if ui and ui.has_method("set_game_over"):
+		ui.set_game_over(result == "DERROTA")
+	
+	# Aquí puedes agregar lógica adicional como:
+	# - Mostrar pantalla de game over
+	# - Guardar estadísticas
+	# - Reiniciar el juego
+	# - etc.

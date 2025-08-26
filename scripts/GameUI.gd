@@ -55,6 +55,16 @@ var drag_start_position: Vector2 = Vector2.ZERO
 var combat_log_entries: Array[String] = []
 const MAX_LOG_ENTRIES: int = 100  # Máximo de entradas en el log
 
+# Sistema de cronómetros
+var match_timer: float = 0.0  # Tiempo total de partida en segundos
+var pressure_timer: float = 15.0  # Cronómetro de presión (configurable)
+var pressure_timer_max: float = 15.0  # Valor máximo del cronómetro de presión
+var pressure_attack_active: bool = false  # Si está ejecutándose el ataque de presión
+var is_player_turn: bool = true  # Si es el turno del jugador (para pausar cronómetro de presión)
+var match_timer_label: Label = null
+var pressure_timer_label: Label = null
+var pressure_timer_bar: ProgressBar = null
+
 const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn")
 
 # --- FUNCIONES DEL MOTOR ---
@@ -83,6 +93,68 @@ func _ready() -> void:
 	
 	# Agregar entrada inicial al log
 	add_combat_log_entry("🎮 ¡Combate iniciado!")
+
+func _process(delta: float) -> void:
+	"""Actualiza los cronómetros cada frame"""
+	_update_timers(delta)
+
+func _update_timers(delta: float) -> void:
+	"""Actualiza ambos cronómetros"""
+	# Solo actualizar si no hay ataque de presión activo
+	if not pressure_attack_active:
+		# Actualizar cronómetro de partida (siempre cuenta hacia arriba)
+		match_timer += delta
+		_update_match_timer_display()
+		
+		# Actualizar cronómetro de presión SOLO durante el turno del jugador
+		if is_player_turn:
+			pressure_timer -= delta
+			_update_pressure_timer_display()
+			
+			# Verificar si el cronómetro de presión llegó a 0
+			if pressure_timer <= 0.0:
+				_trigger_pressure_attack()
+		else:
+			# Durante turno enemigo, solo actualizar el display sin cambiar el valor
+			_update_pressure_timer_display()
+
+func _update_match_timer_display() -> void:
+	"""Actualiza el display del cronómetro de partida"""
+	if match_timer_label:
+		var minutes = int(match_timer / 60)
+		var seconds = int(match_timer) % 60
+		match_timer_label.text = "⏱️ Partida: %02d:%02d" % [minutes, seconds]
+
+func _update_pressure_timer_display() -> void:
+	"""Actualiza el display del cronómetro de presión"""
+	if pressure_timer_label and pressure_timer_bar:
+		var seconds_left = max(0, int(pressure_timer))
+		
+		# Mostrar estado del cronómetro
+		if is_player_turn:
+			pressure_timer_label.text = "⚡ Presión: %ds" % seconds_left
+		else:
+			pressure_timer_label.text = "⚡ Presión: %ds ⏸️" % seconds_left  # Indicador de pausa
+		
+		# Actualizar barra de progreso
+		pressure_timer_bar.value = max(0, pressure_timer)
+		
+		# Cambiar color según el tiempo restante y estado del turno
+		var progress_style = pressure_timer_bar.get_theme_stylebox("fill")
+		if progress_style is StyleBoxFlat:
+			if not is_player_turn:
+				# Durante turno enemigo: color gris para indicar pausa
+				progress_style.bg_color = Color(0.5, 0.5, 0.5, 0.8)
+				pressure_timer_label.modulate = Color(0.7, 0.7, 0.7, 1.0)
+			elif pressure_timer <= 5.0:
+				progress_style.bg_color = Color(1.0, 0.1, 0.1, 1.0)  # Rojo intenso
+				pressure_timer_label.modulate = Color(1.0, 0.3, 0.3, 1.0)
+			elif pressure_timer <= 10.0:
+				progress_style.bg_color = Color(1.0, 0.5, 0.1, 1.0)  # Naranja
+				pressure_timer_label.modulate = Color(1.0, 0.6, 0.4, 1.0)
+			else:
+				progress_style.bg_color = Color(1.0, 0.3, 0.3, 0.8)  # Rojo normal
+				pressure_timer_label.modulate = Color(1.0, 0.8, 0.8, 1.0)
 
 func _create_missing_nodes() -> void:
 	# Crear HandContainer si no existe
@@ -220,7 +292,62 @@ func _create_topbar_system() -> void:
 	topbar_hbox.add_theme_constant_override("separation", 20)
 	topbar_container.add_child(topbar_hbox)
 	
-	# Spacer izquierdo para centrar el botón de log
+	# Cronómetros en el lado izquierdo
+	var timers_container = VBoxContainer.new()
+	timers_container.name = "TimersContainer"
+	timers_container.custom_minimum_size = Vector2(200, 50)
+	timers_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	topbar_hbox.add_child(timers_container)
+	
+	# Cronómetro de partida
+	match_timer_label = Label.new()
+	match_timer_label.name = "MatchTimerLabel"
+	match_timer_label.text = "⏱️ Partida: 00:00"
+	match_timer_label.add_theme_font_size_override("font_size", 12)
+	match_timer_label.modulate = Color(0.8, 1.0, 0.8, 1.0)  # Verde claro
+	timers_container.add_child(match_timer_label)
+	
+	# Container para cronómetro de presión
+	var pressure_container = HBoxContainer.new()
+	pressure_container.add_theme_constant_override("separation", 5)
+	timers_container.add_child(pressure_container)
+	
+	# Cronómetro de presión
+	pressure_timer_label = Label.new()
+	pressure_timer_label.name = "PressureTimerLabel"
+	pressure_timer_label.text = "⚡ Presión: 15s"
+	pressure_timer_label.add_theme_font_size_override("font_size", 12)
+	pressure_timer_label.modulate = Color(1.0, 0.8, 0.8, 1.0)  # Rojo claro
+	pressure_container.add_child(pressure_timer_label)
+	
+	# Barra de progreso para cronómetro de presión
+	pressure_timer_bar = ProgressBar.new()
+	pressure_timer_bar.name = "PressureTimerBar"
+	pressure_timer_bar.custom_minimum_size = Vector2(80, 15)
+	pressure_timer_bar.max_value = pressure_timer_max
+	pressure_timer_bar.value = pressure_timer
+	pressure_timer_bar.show_percentage = false
+	
+	# Estilo de la barra de progreso
+	var progress_style = StyleBoxFlat.new()
+	progress_style.bg_color = Color(1.0, 0.3, 0.3, 0.8)  # Rojo para indicar peligro
+	progress_style.corner_radius_top_left = 3
+	progress_style.corner_radius_top_right = 3
+	progress_style.corner_radius_bottom_left = 3
+	progress_style.corner_radius_bottom_right = 3
+	pressure_timer_bar.add_theme_stylebox_override("fill", progress_style)
+	
+	var progress_bg_style = StyleBoxFlat.new()
+	progress_bg_style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	progress_bg_style.corner_radius_top_left = 3
+	progress_bg_style.corner_radius_top_right = 3
+	progress_bg_style.corner_radius_bottom_left = 3
+	progress_bg_style.corner_radius_bottom_right = 3
+	pressure_timer_bar.add_theme_stylebox_override("background", progress_bg_style)
+	
+	pressure_container.add_child(pressure_timer_bar)
+	
+	# Spacer para centrar el botón de log
 	var left_spacer = Control.new()
 	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	topbar_hbox.add_child(left_spacer)
@@ -627,8 +754,12 @@ func _on_combat_log_button_pressed() -> void:
 func _on_menu_button_pressed() -> void:
 	"""Callback para el botón de menú"""
 	print("☰ Botón de menú presionado")
-	# Por ahora solo mostrar mensaje
-	add_combat_log_entry("☰ Menú presionado (funcionalidad pendiente)")
+	
+	# Funcionalidad de prueba: cambiar duración del cronómetro de presión
+	var new_duration = 30.0 if pressure_timer_max == 15.0 else 15.0
+	set_pressure_timer_duration(new_duration)
+	
+	add_combat_log_entry("☰ Cronómetro de presión cambiado a " + str(int(new_duration)) + " segundos")
 
 func _on_close_combat_log_pressed() -> void:
 	"""Callback para cerrar el log de combate"""
@@ -718,6 +849,151 @@ func add_enemy_action_log(enemy_name: String, action_type: String, value: int, t
 	
 	add_combat_log_entry(action_text)
 
+# --- SISTEMA DE ATAQUE DE PRESIÓN ---
+func _trigger_pressure_attack() -> void:
+	"""Activa el ataque de presión cuando el cronómetro llega a 0"""
+	print("⚡ ¡ATAQUE DE PRESIÓN ACTIVADO!")
+	add_combat_log_entry("⚡ ¡ATAQUE DE PRESIÓN! El tiempo se ha agotado...")
+	
+	pressure_attack_active = true
+	
+	# Bloquear acciones del jugador
+	_block_player_actions(true)
+	
+	# Ejecutar ataque a todos los personajes del jugador
+	await _execute_pressure_attack()
+	
+	# Reiniciar cronómetro de presión
+	_reset_pressure_timer()
+	
+	# Desbloquear acciones del jugador
+	_block_player_actions(false)
+	
+	pressure_attack_active = false
+	
+	add_combat_log_entry("⚡ Ataque de presión completado. El combate continúa...")
+	print("⚡ Ataque de presión completado")
+
+func _block_player_actions(blocked: bool) -> void:
+	"""Bloquea/desbloquea las acciones del jugador durante el ataque de presión"""
+	# Bloquear cartas
+	_set_cards_interactive(not blocked)
+	
+	# Bloquear botones
+	if test_button:
+		test_button.disabled = blocked
+		test_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
+	
+	if end_turn_button:
+		end_turn_button.disabled = blocked
+		end_turn_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
+	
+	if overflow_button:
+		overflow_button.disabled = blocked
+		overflow_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
+	
+	if discard_button:
+		discard_button.disabled = blocked
+		discard_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
+	
+	if deck_button:
+		deck_button.disabled = blocked
+		deck_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
+	
+	print("🔒 Acciones del jugador ", "bloqueadas" if blocked else "desbloqueadas")
+
+func _execute_pressure_attack() -> void:
+	"""Ejecuta el ataque de presión a todos los personajes del jugador"""
+	var game_node = get_parent()
+	if not game_node or not game_node.has_method("get_player_characters"):
+		print("❌ No se pudo obtener personajes del jugador")
+		return
+	
+	var player_chars = game_node.get_player_characters()
+	if player_chars.is_empty():
+		print("❌ No hay personajes del jugador para atacar")
+		return
+	
+	add_combat_log_entry("💀 Fuerzas oscuras atacan a todos los aliados...")
+	
+	# Atacar cada personaje vivo
+	for character in player_chars:
+		if character.hp > 0:
+			_apply_pressure_damage_to_character(character)
+			await get_tree().create_timer(0.5).timeout  # Pausa entre ataques para efecto dramático
+
+func _apply_pressure_damage_to_character(character: CharacterData) -> void:
+	"""Aplica daño de presión a un personaje específico"""
+	# Calcular daño como porcentaje de HP máximo (5% a 30%)
+	var damage_percentage = randf_range(0.05, 0.30)  # 5% a 30%
+	var damage = int(character.max_hp * damage_percentage)
+	damage = max(1, damage)  # Mínimo 1 de daño
+	
+	print("💀 Ataque de presión a ", character.name, ": ", damage, " de daño (", int(damage_percentage * 100), "% de HP máximo)")
+	
+	# Aplicar daño (ignora defensa para el ataque de presión)
+	var old_hp = character.hp
+	character.hp = max(0, character.hp - damage)
+	var actual_damage = old_hp - character.hp
+	
+	# Log del ataque
+	var damage_text = "💀 " + character.name + " recibe " + str(actual_damage) + " de daño de presión"
+	damage_text += " (" + str(int(damage_percentage * 100)) + "% HP máximo)"
+	damage_text += " → HP: " + str(character.hp) + "/" + str(character.max_hp)
+	add_combat_log_entry(damage_text)
+	
+	# Actualizar display del personaje
+	_update_character_display(character)
+	
+	# Verificar si el personaje murió
+	if character.hp == 0:
+		add_combat_log_entry("☠️ " + character.name + " ha caído por el ataque de presión!")
+	
+	# Verificar game over
+	var game_node = get_parent()
+	if game_node and game_node.has_method("_check_game_over"):
+		game_node._check_game_over()
+
+func _reset_pressure_timer() -> void:
+	"""Reinicia el cronómetro de presión"""
+	pressure_timer = pressure_timer_max
+	_update_pressure_timer_display()  # Actualizar display inmediatamente
+	print("⚡ Cronómetro de presión reiniciado a ", pressure_timer_max, " segundos")
+
+func set_pressure_timer_duration(seconds: float) -> void:
+	"""Configura la duración del cronómetro de presión"""
+	pressure_timer_max = seconds
+	pressure_timer = seconds
+	if pressure_timer_bar:
+		pressure_timer_bar.max_value = seconds
+	print("⚡ Cronómetro de presión configurado a ", seconds, " segundos")
+
+func stop_match_timer() -> void:
+	"""Detiene el cronómetro de partida (llamar cuando termine el juego)"""
+	var final_minutes = int(match_timer / 60)
+	var final_seconds = int(match_timer) % 60
+	var final_time = "%02d:%02d" % [final_minutes, final_seconds]
+	
+	add_combat_log_entry("⏱️ Partida terminada. Duración total: " + final_time)
+	print("⏱️ Partida terminada en: ", final_time)
+	
+	# Cambiar color del cronómetro para indicar que terminó
+	if match_timer_label:
+		match_timer_label.modulate = Color(0.6, 0.6, 0.6, 1.0)  # Gris para indicar que terminó
+
+func pause_timers(paused: bool) -> void:
+	"""Pausa/reanuda los cronómetros manualmente (para pausas del juego)"""
+	# Esta función es diferente al sistema de turnos
+	# Se usa para pausas manuales del juego completo
+	if paused:
+		pressure_attack_active = true  # Esto pausará ambos timers
+		add_combat_log_entry("⏸️ Juego pausado - Cronómetros detenidos")
+	else:
+		pressure_attack_active = false
+		add_combat_log_entry("▶️ Juego reanudado - Cronómetros activos")
+	
+	_update_pressure_timer_display()  # Actualizar display
+
 func get_current_hand_size() -> int:
 	"""Obtiene el tamaño actual de la mano (visual)"""
 	if hand_container:
@@ -736,11 +1012,17 @@ func set_player_turn_active(active: bool) -> void:
 	"""Habilita/deshabilita controles durante el turno del jugador"""
 	print("🎮 Turno del jugador activo: ", active)
 	
-	# Agregar al log de combate
+	# Actualizar estado del turno para los cronómetros
+	is_player_turn = active
+	
+	# Gestión del cronómetro de presión según el turno
 	if active:
-		add_combat_log_entry("🎮 Es el turno del jugador")
+		# Inicio del turno del jugador: resetear cronómetro de presión
+		_reset_pressure_timer()
+		add_combat_log_entry("🎮 Es el turno del jugador - ⚡ Cronómetro de presión reiniciado")
 	else:
-		add_combat_log_entry("🤖 Es el turno de los enemigos")
+		# Inicio del turno enemigo: el cronómetro se pausa automáticamente
+		add_combat_log_entry("🤖 Es el turno de los enemigos - ⚡ Cronómetro de presión pausado")
 	
 	# Botones que se deshabilitan durante turno enemigo
 	if test_button:
