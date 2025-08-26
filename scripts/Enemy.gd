@@ -29,11 +29,17 @@ func generate_actions() -> void:
 	
 	print("🤖 Generando acciones enemigas...")
 	
+	var living_enemies = 0
+	var dead_enemies = 0
+	
 	for i in range(enemy_characters.size()):
 		var enemy = enemy_characters[i]
 		if enemy.hp <= 0:
-			print("  - ", enemy.name, " está muerto, no genera acciones")
+			print("  - ", enemy.name, " está muerto ☠️ - SALTADO")
+			dead_enemies += 1
 			continue
+		
+		living_enemies += 1
 		
 		# Generar 1-3 acciones por enemigo
 		var num_actions = randi_range(1, 3)
@@ -43,6 +49,11 @@ func generate_actions() -> void:
 			var action = _generate_random_action(enemy, i)
 			planned_actions.append(action)
 			print("    → ", action.type, " ", action.value, " (Target: ", action.target_type, ")")
+	
+	print("📊 Resumen: ", living_enemies, " enemigos vivos | ", dead_enemies, " enemigos muertos")
+	
+	if planned_actions.is_empty():
+		print("⚠️ No se generaron acciones - Todos los enemigos están muertos o sin acciones")
 	
 	actions_generated.emit(planned_actions)
 
@@ -114,8 +125,19 @@ func execute_turn() -> void:
 	"""Ejecuta todas las acciones planeadas"""
 	print("=== 🤖 TURNO ENEMIGO ===")
 	
+	# Verificar si hay enemigos vivos
+	var living_enemies = 0
+	for enemy in enemy_characters:
+		if enemy.hp > 0:
+			living_enemies += 1
+	
+	if living_enemies == 0:
+		print("💀 Todos los enemigos están muertos - Saltando turno")
+		turn_completed.emit()
+		return
+	
 	if planned_actions.is_empty():
-		print("⚠️ No hay acciones para ejecutar")
+		print("⚠️ No hay acciones para ejecutar - Enemigos sin acciones")
 		turn_completed.emit()
 		return
 	
@@ -132,6 +154,15 @@ func _execute_next_action(action_index: int) -> void:
 		return
 	
 	var action = planned_actions[action_index]
+	
+	# Verificar si el enemigo que iba a ejecutar la acción sigue vivo
+	var enemy_character = enemy_characters[action.enemy_index]
+	if enemy_character.hp <= 0:
+		print("💀 ", action.enemy_name, " murió durante el turno - SALTANDO acción: ", action.type, " ", action.value)
+		# Saltar a la siguiente acción
+		_continue_to_next_action(action_index)
+		return
+	
 	print("🎬 Acción ", action_index + 1, "/", planned_actions.size(), ": ", action.enemy_name, " → ", action.type, " ", action.value)
 	
 	# Ejecutar la acción
@@ -142,6 +173,15 @@ func _execute_next_action(action_index: int) -> void:
 	
 	# Continuar con la siguiente acción después de una pausa
 	await get_tree().create_timer(1.0).timeout
+	_execute_next_action(action_index + 1)
+
+func _continue_to_next_action(action_index: int) -> void:
+	"""Continúa con la siguiente acción sin pausa (para acciones saltadas)"""
+	# Emitir señal para remover preview de la acción saltada
+	var action = planned_actions[action_index]
+	action_executed.emit(action)
+	
+	# Continuar inmediatamente con la siguiente acción
 	_execute_next_action(action_index + 1)
 
 func _execute_single_action(action: Dictionary) -> void:

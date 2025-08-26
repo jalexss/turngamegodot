@@ -432,6 +432,10 @@ func set_player_turn_active(active: bool) -> void:
 		end_turn_button.disabled = not active
 		end_turn_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
 	
+	if overflow_button:
+		overflow_button.disabled = not active
+		overflow_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
+	
 	# Las cartas también se deshabilitan
 	_set_cards_interactive(active)
 	
