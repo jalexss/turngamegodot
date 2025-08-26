@@ -1,6 +1,8 @@
 extends Control
 
 # No necesitamos importar HandContainer ya que es una clase global
+# Importar clases necesarias
+const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 
 # --- NODOS DE LA ESCENA ---
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
@@ -328,17 +330,14 @@ func _on_test_button_pressed() -> void:
 		print("DEBUG: Mano llena, no se puede añadir más cartas")
 		return
 	
-	# Crear carta de test especial (alterna entre tipos)
+	# Crear carta de test especial (ahora siempre crea cartas con efectos especiales)
 	var game_node = get_parent()
 	if game_node and game_node.has_method("_create_test_card"):
-		print("DEBUG: Creando carta de test...")
-		var hand_count = get_hand_size()
-		var use_damage_ally_card = (hand_count % 4 == 0)  # Cada 4 cartas, crear carta de daño a aliados
-		var use_super_damage_card = (hand_count % 5 == 0)  # Cada 5 cartas, crear carta súper poderosa
-		var use_super_heal_card = (hand_count % 6 == 0)    # Cada 6 cartas, crear carta súper curación
-		var test_card = game_node._create_test_card(use_damage_ally_card, use_super_damage_card, use_super_heal_card)
+		print("DEBUG: Creando carta de test con efectos especiales...")
+		# Siempre crear cartas con efectos especiales
+		var test_card = game_node._create_test_card(false, false, false)
 		if test_card:
-			print("DEBUG: Carta de test creada exitosamente")
+			print("DEBUG: Carta de test creada exitosamente: ", test_card.data.name)
 			add_card_to_hand(test_card)
 		else:
 			print("DEBUG: ERROR - No se pudo crear carta de test")
@@ -826,6 +825,20 @@ func _get_valid_targets_for_card(card_data: CardData) -> Array:
 		valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
 		return valid_targets
 	
+	# Verificar propiedades específicas de targeting de la carta
+	if card_data.has_method("can_target_enemies") and card_data.has_method("can_target_allies"):
+		if card_data.can_target_enemies:
+			var enemy_targets = enemy_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
+			valid_targets.append_array(enemy_targets)
+		
+		if card_data.can_target_allies:
+			var ally_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
+			valid_targets.append_array(ally_targets)
+		
+		if not valid_targets.is_empty():
+			return valid_targets
+	
+	# Fallback al sistema tradicional basado en tipo de carta
 	match card_data.card_type:
 		CardData.CardType.ATTACK, CardData.CardType.DEBUFF:
 			# Cartas ofensivas van a enemigos VIVOS
@@ -833,6 +846,17 @@ func _get_valid_targets_for_card(card_data: CardData) -> Array:
 		CardData.CardType.HEAL, CardData.CardType.DEFENSE, CardData.CardType.BUFF:
 			# Cartas defensivas/de apoyo van a aliados VIVOS
 			valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
+		CardData.CardType.STATUS:
+			# Cartas de estado: verificar si pueden targetear enemigos o aliados
+			if card_data.has_status_effects():
+				# Por defecto, cartas de estado ofensivas van a enemigos
+				var first_effect = card_data.status_effects[0] if not card_data.status_effects.is_empty() else {}
+				var effect_type = first_effect.get("effect_type", "")
+				
+				if effect_type in ["DEBUFF_ATTACK", "DEBUFF_DEFENSE", "POISON", "STUN", "VULNERABILITY", "HEAL_BLOCK"]:
+					valid_targets = enemy_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
+				else:
+					valid_targets = player_slots_nodes.filter(func(slot): return slot.character_data != null and slot.character_data.hp > 0)
 		_:
 			# Otros tipos por ahora no tienen targeting específico
 			pass
@@ -945,8 +969,22 @@ func _apply_card_effects(card_data: CardData, target_character: CharacterData) -
 	print("  - Carta ID: ", card_data.id)
 	print("  - Power: ", card_data.power)
 	print("  - Effects array size: ", card_data.effects.size())
+	print("  - Status effects size: ", card_data.status_effects.size())
 	print("  - Effects content: ", card_data.effects)
 	
+	# Obtener referencia al EffectManager
+	var game_node = get_parent()
+	var effect_manager = null
+	if game_node and game_node.has_method("get_effect_manager"):
+		effect_manager = game_node.get_effect_manager()
+	
+	# Aplicar efectos de estado primero
+	if card_data.has_status_effects() and effect_manager:
+		print("🔮 Aplicando efectos de estado...")
+		for status_effect_data in card_data.status_effects:
+			_apply_status_effect(target_character, status_effect_data, effect_manager)
+	
+	# Aplicar efectos tradicionales
 	if card_data.effects.is_empty():
 		print("⚠️ ADVERTENCIA: La carta no tiene efectos definidos!")
 		print("  - Usando power como daño por defecto: ", card_data.power)
@@ -980,6 +1018,9 @@ func _apply_card_effects(card_data: CardData, target_character: CharacterData) -
 					_apply_buff(target_character, effect_value)
 				"DEBUFF":
 					_apply_debuff(target_character, effect_value)
+				"APPLY_STATUS":
+					if effect_manager:
+						_apply_status_effect_from_effect(target_character, effect, effect_manager)
 				_:
 					print("    ⚠️ Efecto desconocido: ", effect_type)
 	
@@ -1048,12 +1089,88 @@ func _apply_debuff(character: CharacterData, debuff: int) -> void:
 	character.attack = max(0, character.attack - debuff)
 	print("⬇️ ", character.name, " pierde ", debuff, " de ataque (Ataque: ", character.attack, ")")
 
+func _apply_status_effect(character: CharacterData, status_data: Dictionary, effect_manager: EffectManagerClass) -> void:
+	"""Aplica un efecto de estado desde los datos de la carta"""
+	var effect_type_str = status_data.get("effect_type", "")
+	var modifier_type_str = status_data.get("modifier_type", "FLAT")
+	var value = status_data.get("value", 0)
+	var duration = status_data.get("duration", 1)
+	
+	# Convertir string a enum
+	var effect_type = _string_to_status_effect_type(effect_type_str)
+	var modifier_type = StatusEffect.ModifierType.FLAT
+	if modifier_type_str == "PERCENTAGE":
+		modifier_type = StatusEffect.ModifierType.PERCENTAGE
+	
+	# Crear el StatusEffect
+	var status_effect = StatusEffect.new(effect_type, value, duration)
+	status_effect.modifier_type = modifier_type
+	status_effect.source_name = "Carta"
+	
+	# Aplicar el efecto
+	effect_manager.apply_effect(character, status_effect)
+	print("🔮 Efecto de estado aplicado: ", status_effect.get_display_text())
+
+func _apply_status_effect_from_effect(character: CharacterData, effect_data: Dictionary, effect_manager: EffectManagerClass) -> void:
+	"""Aplica un efecto de estado desde un efecto tradicional"""
+	var status_type_str = effect_data.get("status_type", "")
+	var value = effect_data.get("value", 0)
+	var duration = effect_data.get("duration", 1)
+	
+	# Convertir string a enum
+	var effect_type = _string_to_status_effect_type(status_type_str)
+	
+	# Crear el StatusEffect
+	var status_effect = StatusEffect.new(effect_type, value, duration)
+	status_effect.source_name = "Carta"
+	
+	# Aplicar el efecto
+	effect_manager.apply_effect(character, status_effect)
+	print("🔮 Efecto de estado aplicado desde efecto: ", status_effect.get_display_text())
+
+func _string_to_status_effect_type(type_str: String) -> StatusEffect.EffectType:
+	"""Convierte un string a StatusEffect.EffectType"""
+	match type_str:
+		"BUFF_ATTACK":
+			return StatusEffect.EffectType.BUFF_ATTACK
+		"DEBUFF_ATTACK":
+			return StatusEffect.EffectType.DEBUFF_ATTACK
+		"BUFF_DEFENSE":
+			return StatusEffect.EffectType.BUFF_DEFENSE
+		"DEBUFF_DEFENSE":
+			return StatusEffect.EffectType.DEBUFF_DEFENSE
+		"STUN":
+			return StatusEffect.EffectType.STUN
+		"POISON":
+			return StatusEffect.EffectType.POISON
+		"REGENERATION":
+			return StatusEffect.EffectType.REGENERATION
+		"SHIELD":
+			return StatusEffect.EffectType.SHIELD
+		"VULNERABILITY":
+			return StatusEffect.EffectType.VULNERABILITY
+		"STRENGTH":
+			return StatusEffect.EffectType.STRENGTH
+		"WEAKNESS":
+			return StatusEffect.EffectType.WEAKNESS
+		"DOUBLE_DAMAGE":
+			return StatusEffect.EffectType.DOUBLE_DAMAGE
+		"HEAL_BLOCK":
+			return StatusEffect.EffectType.HEAL_BLOCK
+		_:
+			print("⚠️ Tipo de efecto desconocido: ", type_str)
+			return StatusEffect.EffectType.BUFF_ATTACK  # Default
+
 func _update_character_display(character: CharacterData) -> void:
 	"""Actualiza la visualización de un personaje"""
 	# Buscar el slot del personaje y actualizar su display
 	for slot in player_slots_nodes + enemy_slots_nodes:
 		if slot.character_data == character:
 			slot.set_character_data(character)  # Esto debería actualizar la UI
+			
+			# Actualizar efectos de estado
+			if slot.has_method("update_status_effects"):
+				slot.update_status_effects()
 			
 			# Marcar como muerto si HP = 0
 			if character.hp <= 0 and slot.has_method("set_dead_state"):
@@ -1160,22 +1277,24 @@ func _discard_card(card: Node2D) -> void:
 	
 	print("🗑️ Descartando carta: ", card.data.name if card.data else "Sin datos")
 	
-	# Añadir a la pila de descarte (tanto local como en Player.gd)
+	# Remover de la mano de datos en Player.gd PRIMERO
 	if card.data:
+		var game_node = get_parent()
+		if game_node and game_node.has_method("get_player_manager"):
+			var player_manager = game_node.get_player_manager()
+			if player_manager and player_manager.has_method("discard_card"):
+				print("🔍 DEBUG: Descartando carta en Player.gd")
+				player_manager.discard_card(card.data)
+			else:
+				print("⚠️ No se pudo descartar en Player.gd - usando método alternativo")
+				if game_node.has_method("discard_card_from_hand"):
+					game_node.discard_card_from_hand(card.data)
+		
 		# Añadir al descarte local (para compatibilidad)
 		discard_pile.append(card.data)
-		
-		# Añadir al descarte del Player.gd (sistema principal)
-		var game_node = get_parent()
-		if game_node and game_node.has_method("discard_card_from_hand"):
-			print("🔍 DEBUG: Notificando descarte a Player.gd")
-			game_node.discard_card_from_hand(card.data)
-		else:
-			print("⚠️ No se pudo notificar descarte a Player.gd")
-		
 		_update_discard_button_display()
 	
-	# Remover de la mano
+	# Remover de la mano visual
 	hand_container.remove_child(card)
 	card.queue_free()
 
@@ -1243,9 +1362,11 @@ func set_energy(current_energy: int, max_energy: int = 3):
 
 func update_player_chars(chars_data: Array):
 	_update_character_slots(player_slots_nodes, chars_data)
+	_update_all_status_effects(player_slots_nodes)
 
 func update_enemy_chars(chars_data: Array):
 	_update_character_slots(enemy_slots_nodes, chars_data)
+	_update_all_status_effects(enemy_slots_nodes)
 
 func _update_character_slots(slots: Array, data: Array):
 	for i in range(slots.size()):
@@ -1257,3 +1378,9 @@ func _update_character_slots(slots: Array, data: Array):
 				slot_node.set_character_data(d)
 		else:
 			slot_node.visible = false
+
+func _update_all_status_effects(slots: Array) -> void:
+	"""Actualiza los efectos de estado para todos los slots"""
+	for slot in slots:
+		if slot.visible and slot.has_method("update_status_effects"):
+			slot.update_status_effects()

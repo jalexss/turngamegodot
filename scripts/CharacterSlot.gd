@@ -14,6 +14,7 @@ var character_data: CharacterData
 var is_targeting_highlight: bool = false
 var is_dead: bool = false
 var action_previews: Array = []  # Acciones enemigas pendientes
+var active_effects: Array = []   # Efectos de estado activos
 
 func _ready():
 	# Conectar las señales del ratón a nuestras funciones
@@ -146,8 +147,46 @@ func clear_action_previews() -> void:
 	action_previews.clear()
 	_update_action_display()
 
+# --- SISTEMA DE EFECTOS DE ESTADO ---
+func update_status_effects() -> void:
+	"""Actualiza los efectos de estado desde el EffectManager"""
+	if not character_data:
+		return
+	
+	# Obtener referencia al Game node y luego al EffectManager
+	var game_ui = get_parent().get_parent()  # Asumiendo estructura: Game -> GameUI -> CharacterSlot
+	if not game_ui:
+		return
+	
+	var game_node = game_ui.get_parent()
+	if not game_node or not game_node.has_method("get_effect_manager"):
+		return
+	
+	var effect_manager = game_node.get_effect_manager()
+	if not effect_manager:
+		return
+	
+	# Obtener efectos activos del personaje
+	active_effects = effect_manager.get_character_effects(character_data)
+	_update_action_display()
+
+func get_status_effects_text() -> String:
+	"""Retorna el texto de los efectos de estado activos"""
+	if active_effects.is_empty():
+		return ""
+	
+	var effects_text = ""
+	for i in range(active_effects.size()):
+		var effect = active_effects[i]
+		if effect and effect.has_method("get_display_text"):
+			effects_text += effect.get_display_text()
+			if i < active_effects.size() - 1:
+				effects_text += "\n"
+	
+	return effects_text
+
 func _update_action_display() -> void:
-	"""Actualiza la visualización de las acciones pendientes"""
+	"""Actualiza la visualización de las acciones pendientes y efectos de estado"""
 	if not character_data:
 		# Si no hay character_data, limpiar el label
 		name_label.text = ""
@@ -173,10 +212,18 @@ func _update_action_display() -> void:
 		if i < action_previews.size() - 1:
 			action_text += "\n"
 	
-	# Actualizar el nombre del personaje para incluir las acciones
-	if action_text != "":
-		name_label.text = character_data.name + "\n" + action_text
-	else:
-		name_label.text = character_data.name
+	# Construir texto de efectos de estado
+	var effects_text = get_status_effects_text()
 	
-	print("🎯 Actualizado display para ", character_data.name, " con ", action_previews.size(), " acciones")
+	# Combinar nombre, acciones y efectos
+	var display_text = character_data.name
+	
+	if action_text != "":
+		display_text += "\n" + action_text
+	
+	if effects_text != "":
+		display_text += "\n" + effects_text
+	
+	name_label.text = display_text
+	
+	print("🎯 Actualizado display para ", character_data.name, " con ", action_previews.size(), " acciones y ", active_effects.size(), " efectos")

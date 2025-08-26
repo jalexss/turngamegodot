@@ -3,6 +3,9 @@ extends Node2D
 const ENEMY_DECKS_PATH = "res://data/enemy_decks.json"
 const PLAYER_DECK_PATH = "res://data/player_deck.json"
 
+# Importar clases necesarias
+const EffectManagerClass = preload("res://scripts/EffectManager.gd")
+
 # Opciones de deck para el jugador
 @export_enum("Automático", "Balanceado", "Agresivo", "Defensivo", "Inicial") var player_deck_type: int = 0
 @export var testing_deck_id: int = -1  # si > 0 fuerza ese deck en vez de random
@@ -12,6 +15,7 @@ const PLAYER_DECK_PATH = "res://data/player_deck.json"
 @onready var ui = $GameUI as Control
 @onready var player_manager = get_node_or_null("Player")
 @onready var enemy_manager = get_node_or_null("Enemy")
+@onready var effect_manager = get_node_or_null("EffectManager")
 
 # --- VARIABLES DE JUEGO ---
 var turn_num := 0
@@ -63,7 +67,7 @@ func _ready() -> void:
 	_start_turn()
 
 func _create_missing_managers() -> void:
-	"""Crea los nodos Player y Enemy si no existen"""
+	"""Crea los nodos Player, Enemy y EffectManager si no existen"""
 	if not player_manager:
 		print("DEBUG: Creando Player manager...")
 		var new_player = preload("res://scripts/Player.gd").new()
@@ -77,6 +81,13 @@ func _create_missing_managers() -> void:
 		new_enemy.name = "Enemy"
 		add_child(new_enemy)
 		enemy_manager = new_enemy
+	
+	if not effect_manager:
+		print("DEBUG: Creando EffectManager...")
+		var new_effect_manager = EffectManagerClass.new()
+		new_effect_manager.name = "EffectManager"
+		add_child(new_effect_manager)
+		effect_manager = new_effect_manager
 
 func _start_turn() -> void:
 	turn_num += 1
@@ -84,6 +95,11 @@ func _start_turn() -> void:
 	
 	print("=== 🎮 TURNO DEL JUGADOR ", turn_num, " ===")
 	ui.set_turn(turn_num)
+	
+	# Procesar efectos de inicio de turno para jugadores
+	if effect_manager:
+		for character in player_chars:
+			effect_manager.process_turn_start_effects(character)
 	
 	# Habilitar UI para turno del jugador
 	ui.set_player_turn_active(true)
@@ -115,14 +131,34 @@ func _draw_and_show() -> void:
 func _create_test_card(create_damage_ally_card: bool = false, create_super_damage_card: bool = false, create_super_heal_card: bool = false) -> Node2D:
 	print("DEBUG: _create_test_card() llamado - Aliados: ", create_damage_ally_card, " Súper daño: ", create_super_damage_card, " Súper curación: ", create_super_heal_card)
 	
+	# Determinar qué tipo de carta crear basado en el contador de cartas en mano
+	var hand_count = ui.get_hand_size()
+	var card_type = hand_count % 8  # Ciclo de 8 tipos diferentes
+	
+	match card_type:
+		0:
+			return _create_status_debuff_attack_card()
+		1:
+			return _create_status_poison_card()
+		2:
+			return _create_status_stun_card()
+		3:
+			return _create_status_buff_defense_card()
+		4:
+			return _create_status_regeneration_card()
+		5:
+			return _create_status_double_damage_card()
+		6:
+			return _create_status_heal_block_card()
+		7:
+			return _create_status_vulnerability_card()
+	
+	# Fallback a cartas especiales originales
 	if create_super_heal_card:
-		# Crear carta súper curación
 		return _create_super_heal_card()
 	elif create_super_damage_card:
-		# Crear carta súper poderosa
 		return _create_super_damage_card()
 	elif create_damage_ally_card:
-		# Crear carta especial que daña aliados
 		return _create_special_damage_ally_card()
 	
 	# Crear carta normal
@@ -243,6 +279,209 @@ func _create_super_heal_card() -> Node2D:
 	print("DEBUG: Carta súper curación creada: ", super_heal_data.name)
 	return card
 
+# --- CARTAS CON EFECTOS DE ESTADO ---
+func _create_status_debuff_attack_card() -> Node2D:
+	"""Crea una carta que reduce el ataque del enemigo"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2001
+	card_data.name = "Maldición Debilitante"
+	card_data.cost = 2
+	card_data.description = "Reduce el ataque del enemigo en 3 por 4 turnos"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.UNCOMMON
+	card_data.can_target_enemies = true
+	card_data.can_target_allies = false
+	
+	# Efectos de estado
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "DEBUFF_ATTACK",
+		"modifier_type": "FLAT",
+		"value": -3,
+		"duration": 4
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_poison_card() -> Node2D:
+	"""Crea una carta que envenena al enemigo"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2002
+	card_data.name = "Veneno Mortal"
+	card_data.cost = 3
+	card_data.description = "El enemigo recibe 2 de daño por veneno durante 5 turnos"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.RARE
+	card_data.can_target_enemies = true
+	card_data.can_target_allies = false
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "POISON",
+		"modifier_type": "FLAT",
+		"value": 2,
+		"duration": 5
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_stun_card() -> Node2D:
+	"""Crea una carta que aturde al enemigo"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2003
+	card_data.name = "Aturdimiento"
+	card_data.cost = 4
+	card_data.description = "El enemigo pierde su próximo turno"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.RARE
+	card_data.can_target_enemies = true
+	card_data.can_target_allies = false
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "STUN",
+		"modifier_type": "FLAT",
+		"value": 1,
+		"duration": 1
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_buff_defense_card() -> Node2D:
+	"""Crea una carta que aumenta la defensa de un aliado"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2004
+	card_data.name = "Bendición de Fortaleza"
+	card_data.cost = 2
+	card_data.description = "Aumenta la defensa de un aliado en 5 por 3 turnos"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.UNCOMMON
+	card_data.can_target_enemies = false
+	card_data.can_target_allies = true
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "BUFF_DEFENSE",
+		"modifier_type": "FLAT",
+		"value": 5,
+		"duration": 3
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_regeneration_card() -> Node2D:
+	"""Crea una carta que regenera HP a un aliado"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2005
+	card_data.name = "Regeneración Mística"
+	card_data.cost = 3
+	card_data.description = "Un aliado se cura 3 HP cada turno durante 4 turnos"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.RARE
+	card_data.can_target_enemies = false
+	card_data.can_target_allies = true
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "REGENERATION",
+		"modifier_type": "FLAT",
+		"value": 3,
+		"duration": 4
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_double_damage_card() -> Node2D:
+	"""Crea una carta que hace que el próximo ataque haga doble daño"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2006
+	card_data.name = "Golpe Crítico"
+	card_data.cost = 1
+	card_data.description = "Tu próximo ataque hace doble daño"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.UNCOMMON
+	card_data.can_target_enemies = false
+	card_data.can_target_allies = true
+	card_data.can_target_self = true
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "DOUBLE_DAMAGE",
+		"modifier_type": "FLAT",
+		"value": 1,
+		"duration": 1
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_heal_block_card() -> Node2D:
+	"""Crea una carta que impide que el enemigo se cure"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2007
+	card_data.name = "Herida Infectada"
+	card_data.cost = 3
+	card_data.description = "El enemigo no puede curarse por 3 turnos"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.RARE
+	card_data.can_target_enemies = true
+	card_data.can_target_allies = false
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "HEAL_BLOCK",
+		"modifier_type": "FLAT",
+		"value": 1,
+		"duration": 3
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
+func _create_status_vulnerability_card() -> Node2D:
+	"""Crea una carta que hace que el enemigo reciba más daño"""
+	var card_data = preload("res://scripts/CardData.gd").new()
+	card_data.id = 2008
+	card_data.name = "Marca de Vulnerabilidad"
+	card_data.cost = 2
+	card_data.description = "El enemigo recibe 50% más daño por 2 turnos"
+	card_data.card_type = CardData.CardType.STATUS
+	card_data.rarity = CardData.Rarity.UNCOMMON
+	card_data.can_target_enemies = true
+	card_data.can_target_allies = false
+	
+	var status_effects: Array[Dictionary] = []
+	status_effects.append({
+		"effect_type": "VULNERABILITY",
+		"modifier_type": "PERCENTAGE",
+		"value": 50,
+		"duration": 2
+	})
+	card_data.status_effects = status_effects
+	
+	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+	card.set_data(card_data)
+	return card
+
 # --- SISTEMA DE ENERGÍA ---
 # --- FUNCIONES DE ENERGÍA (DELEGADAS AL PLAYER) ---
 func can_afford_card(card_cost: int) -> bool:
@@ -283,10 +522,21 @@ func get_max_energy() -> int:
 func end_player_turn() -> void:
 	"""Termina el turno del jugador e inicia el turno enemigo"""
 	print("🔄 Terminando turno del jugador...")
+	
+	# Procesar efectos de final de turno para jugadores
+	if effect_manager:
+		for character in player_chars:
+			effect_manager.process_turn_end_effects(character)
+	
 	current_phase = TurnPhase.ENEMY
 	
 	# Deshabilitar UI durante turno enemigo
 	ui.set_player_turn_active(false)
+	
+	# Procesar efectos de inicio de turno para enemigos
+	if effect_manager:
+		for character in enemy_chars:
+			effect_manager.process_turn_start_effects(character)
 	
 	# Ejecutar turno enemigo
 	if enemy_manager:
@@ -345,7 +595,18 @@ func _on_enemy_action_executed(action: Dictionary) -> void:
 
 func _on_enemy_turn_completed() -> void:
 	"""Callback cuando termina el turno enemigo"""
-	print("✅ Turno enemigo completado, iniciando nuevo turno del jugador")
+	print("✅ Turno enemigo completado")
+	
+	# Procesar efectos de final de turno para enemigos
+	if effect_manager:
+		for character in enemy_chars:
+			effect_manager.process_turn_end_effects(character)
+	
+	# Actualizar UI después de procesar efectos
+	ui.update_player_chars(player_chars)
+	ui.update_enemy_chars(enemy_chars)
+	
+	print("🔄 Iniciando nuevo turno del jugador")
 	_start_turn()
 
 # --- GETTERS PARA MANAGERS ---
@@ -395,6 +656,14 @@ func discard_card_from_hand(card_data) -> void:
 		player_manager.add_to_discard_pile(card_data)
 	else:
 		print("❌ No se pudo añadir carta al descarte - Player manager no disponible")
+
+func get_effect_manager() -> EffectManagerClass:
+	"""Retorna el EffectManager"""
+	return effect_manager
+
+func get_player_manager() -> Player:
+	"""Retorna el Player manager"""
+	return player_manager
 
 func _check_game_over() -> void:
 	"""Verifica si el juego ha terminado"""
