@@ -203,3 +203,10 @@ func get_cards_remaining() -> int:
 func is_empty() -> bool:
 	"""Verifica si el deck está vacío"""
 	return cards.is_empty()
+
+func get_remaining_cards() -> Array:
+	"""Retorna una copia de las cartas que quedan en el mazo"""
+	var remaining_cards = []
+	for card_data in cards:
+		remaining_cards.append(card_data.id)
+	return remaining_cards

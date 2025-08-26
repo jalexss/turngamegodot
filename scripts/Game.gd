@@ -363,6 +363,39 @@ func get_player_hand_size() -> int:
 		return player_manager.get_hand_size()
 	return -1
 
+func get_deck_cards() -> Array:
+	"""Retorna las cartas que están actualmente en el mazo"""
+	if not deck:
+		return []
+	
+	var deck_card_ids = deck.get_remaining_cards()
+	var deck_cards = []
+	
+	for card_id in deck_card_ids:
+		var card_data = deck.all_card_definitions.get(card_id)
+		if card_data:
+			deck_cards.append(card_data)
+	
+	print("📚 Obteniendo cartas del mazo: ", deck_cards.size(), " cartas")
+	return deck_cards
+
+func get_discard_cards() -> Array:
+	"""Retorna las cartas que están en el descarte"""
+	if not player_manager or not player_manager.has_method("get_discard_pile"):
+		return []
+	
+	var discard_pile = player_manager.get_discard_pile()
+	print("🗑️ Obteniendo cartas de descarte: ", discard_pile.size(), " cartas")
+	return discard_pile
+
+func discard_card_from_hand(card_data) -> void:
+	"""Descarta una carta específica de la mano del jugador"""
+	if player_manager and player_manager.has_method("add_to_discard_pile"):
+		print("🗑️ Game.gd: Añadiendo carta ", card_data.name, " al descarte a través de Player.gd")
+		player_manager.add_to_discard_pile(card_data)
+	else:
+		print("❌ No se pudo añadir carta al descarte - Player manager no disponible")
+
 func _check_game_over() -> void:
 	"""Verifica si el juego ha terminado"""
 	var player_alive = false

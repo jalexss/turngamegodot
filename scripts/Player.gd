@@ -222,6 +222,12 @@ func discard_card(card_data) -> void:
 	else:
 		print("⚠️ Carta no encontrada para descartar: ", card_data.name)
 
+func add_to_discard_pile(card_data) -> void:
+	"""Añade una carta al descarte sin removerla de la mano"""
+	print("🗑️ AÑADIENDO AL DESCARTE: ", card_data.name)
+	discard_pile.append(card_data)
+	print("📊 Descarte actualizado: ", discard_pile.size(), " cartas")
+
 func get_hand_size() -> int:
 	return hand_cards.size()
 
@@ -251,6 +257,9 @@ func get_max_energy() -> int:
 
 func get_hand_cards() -> Array:
 	return hand_cards.duplicate()
+
+func get_discard_pile() -> Array:
+	return discard_pile.duplicate()
 
 func _has_pending_cards() -> bool:
 	"""Verifica si hay cartas pendientes en overflow"""

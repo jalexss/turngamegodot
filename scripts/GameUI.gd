@@ -127,8 +127,8 @@ func _create_missing_nodes() -> void:
 		new_deck_button.modulate = Color(0.8, 0.9, 1.0)  # Azul claro
 		add_child(new_deck_button)
 		deck_button = new_deck_button
-		# No necesita señal, es solo visual
-		print("DEBUG: DeckButton creado")
+		deck_button.pressed.connect(_on_deck_button_pressed)
+		print("DEBUG: DeckButton creado y conectado")
 	
 	# Crear OverflowButton si no existe (inicialmente oculto)
 	if not overflow_button:
@@ -147,8 +147,16 @@ func _create_missing_nodes() -> void:
 		overflow_button.pressed.connect(_on_overflow_button_pressed)
 		print("DEBUG: OverflowButton creado y conectado")
 	
-	# Crear DiscardButton si no existe
-	if not discard_button:
+	# Conectar DiscardButton si existe en la escena
+	if discard_button:
+		print("DEBUG: DiscardButton encontrado en escena, conectando...")
+		# Desconectar cualquier conexión previa para evitar duplicados
+		if discard_button.pressed.is_connected(_on_discard_button_pressed):
+			discard_button.pressed.disconnect(_on_discard_button_pressed)
+		discard_button.pressed.connect(_on_discard_button_pressed)
+		_update_discard_button_display()
+		print("DEBUG: DiscardButton conectado exitosamente")
+	else:
 		print("DEBUG: Creando DiscardButton automáticamente...")
 		var new_discard_button = Button.new()
 		new_discard_button.name = "DiscardButton"
@@ -157,8 +165,9 @@ func _create_missing_nodes() -> void:
 		new_discard_button.size = Vector2(150, 100)
 		add_child(new_discard_button)
 		discard_button = new_discard_button
+		discard_button.pressed.connect(_on_discard_button_pressed)
 		_update_discard_button_display()
-		print("DEBUG: DiscardButton creado")
+		print("DEBUG: DiscardButton creado y conectado")
 
 func _input(event: InputEvent) -> void:
 	# No procesar input de cartas si no son interactivas
@@ -362,6 +371,27 @@ func _on_end_turn_button_pressed() -> void:
 	else:
 		print("DEBUG: ERROR - No se encontró el método end_player_turn en el nodo padre")
 
+func _on_deck_button_pressed() -> void:
+	"""Callback para el botón del mazo"""
+	print("📚 Botón del mazo presionado")
+	show_deck_modal()
+
+func _on_discard_button_pressed() -> void:
+	"""Callback para el botón de descarte"""
+	print("🗑️ Botón de descarte presionado")
+	print("🔍 DEBUG: Verificando conexión del botón de descarte...")
+	
+	# Debug adicional
+	if discard_button:
+		print("✅ discard_button existe: ", discard_button.name)
+		print("✅ discard_button visible: ", discard_button.visible)
+		print("✅ discard_button disabled: ", discard_button.disabled)
+	else:
+		print("❌ discard_button es null!")
+		return
+	
+	show_discard_modal()
+
 # --- FUNCIÓN OVERFLOW BUTTON ---
 func _on_overflow_button_pressed() -> void:
 	print("📥 Botón de cartas pendientes presionado!")
@@ -481,6 +511,245 @@ func force_reorganize_hand() -> void:
 func get_pending_cards_count() -> int:
 	"""Retorna la cantidad de cartas pendientes en overflow"""
 	return pending_cards.size()
+
+# --- SISTEMA DE MODALES ---
+var modal_overlay: Control = null
+var current_modal: Control = null
+
+func _create_modal_overlay() -> Control:
+	"""Crea el overlay oscuro para modales"""
+	if modal_overlay:
+		return modal_overlay
+	
+	modal_overlay = Control.new()
+	modal_overlay.name = "ModalOverlay"
+	modal_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	modal_overlay.visible = false
+	modal_overlay.z_index = 100  # Por encima de todo
+	
+	# Crear panel de fondo para capturar clicks
+	var background = Panel.new()
+	background.name = "Background"
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Crear StyleBox para el fondo oscuro
+	var style_box = StyleBoxFlat.new()
+	style_box.bg_color = Color(0, 0, 0, 0.7)  # Fondo semi-transparente
+	background.add_theme_stylebox_override("panel", style_box)
+	
+	modal_overlay.add_child(background)
+	
+	# Conectar click en fondo para cerrar modal
+	background.gui_input.connect(_on_modal_background_clicked)
+	
+	add_child(modal_overlay)
+	return modal_overlay
+
+func _create_card_modal(title: String, cards: Array) -> Control:
+	"""Crea un modal para mostrar cartas"""
+	var modal = Panel.new()
+	modal.name = "CardModal"
+	modal.custom_minimum_size = Vector2(800, 600)
+	modal.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	
+	# Crear StyleBox para el fondo del modal
+	var modal_style = StyleBoxFlat.new()
+	modal_style.bg_color = Color(0.2, 0.2, 0.3, 0.95)  # Fondo del modal
+	modal_style.corner_radius_top_left = 10
+	modal_style.corner_radius_top_right = 10
+	modal_style.corner_radius_bottom_left = 10
+	modal_style.corner_radius_bottom_right = 10
+	modal_style.border_width_left = 2
+	modal_style.border_width_right = 2
+	modal_style.border_width_top = 2
+	modal_style.border_width_bottom = 2
+	modal_style.border_color = Color(0.5, 0.5, 0.6, 1.0)
+	modal.add_theme_stylebox_override("panel", modal_style)
+	
+	# Crear VBoxContainer principal
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("separation", 10)
+	modal.add_child(vbox)
+	
+	# Header con título y botón cerrar
+	var header = HBoxContainer.new()
+	header.custom_minimum_size = Vector2(0, 50)
+	vbox.add_child(header)
+	
+	# Título
+	var title_label = Label.new()
+	title_label.text = title
+	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.modulate = Color.WHITE
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title_label)
+	
+	# Botón cerrar
+	var close_button = Button.new()
+	close_button.text = "✕ CERRAR"
+	close_button.custom_minimum_size = Vector2(120, 40)
+	close_button.modulate = Color(1.2, 0.8, 0.8)
+	close_button.pressed.connect(_close_modal)
+	header.add_child(close_button)
+	
+	# ScrollContainer para las cartas
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(scroll)
+	
+	# GridContainer para organizar las cartas
+	var grid = GridContainer.new()
+	grid.columns = 4  # 4 cartas por fila
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	scroll.add_child(grid)
+	
+	# Añadir cartas al grid
+	_populate_card_grid(grid, cards)
+	
+	return modal
+
+func _populate_card_grid(grid: GridContainer, cards: Array) -> void:
+	"""Llena el grid con cartas"""
+	print("📋 Poblando grid con ", cards.size(), " cartas")
+	
+	for card_data in cards:
+		# Crear representación visual de la carta
+		var card_panel = Panel.new()
+		card_panel.custom_minimum_size = Vector2(150, 200)
+		
+		# Crear StyleBox para la carta
+		var card_style = StyleBoxFlat.new()
+		card_style.bg_color = Color(0.3, 0.3, 0.4, 0.8)
+		card_style.corner_radius_top_left = 8
+		card_style.corner_radius_top_right = 8
+		card_style.corner_radius_bottom_left = 8
+		card_style.corner_radius_bottom_right = 8
+		card_style.border_width_left = 1
+		card_style.border_width_right = 1
+		card_style.border_width_top = 1
+		card_style.border_width_bottom = 1
+		card_style.border_color = Color(0.6, 0.6, 0.7, 1.0)
+		card_panel.add_theme_stylebox_override("panel", card_style)
+		
+		# VBox para organizar contenido de la carta
+		var card_vbox = VBoxContainer.new()
+		card_vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		card_vbox.add_theme_constant_override("separation", 5)
+		card_panel.add_child(card_vbox)
+		
+		# Nombre de la carta
+		var name_label = Label.new()
+		name_label.text = card_data.name
+		name_label.add_theme_font_size_override("font_size", 14)
+		name_label.modulate = Color.WHITE
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card_vbox.add_child(name_label)
+		
+		# Costo de energía
+		var cost_label = Label.new()
+		cost_label.text = "⚡ " + str(card_data.cost)
+		cost_label.add_theme_font_size_override("font_size", 12)
+		cost_label.modulate = Color.YELLOW
+		cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card_vbox.add_child(cost_label)
+		
+		# Poder/Efecto
+		var power_label = Label.new()
+		power_label.text = "💥 " + str(card_data.power)
+		power_label.add_theme_font_size_override("font_size", 12)
+		power_label.modulate = Color.ORANGE
+		power_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card_vbox.add_child(power_label)
+		
+		# Descripción (si existe)
+		if card_data.description != null and card_data.description != "":
+			var desc_label = Label.new()
+			desc_label.text = card_data.description
+			desc_label.add_theme_font_size_override("font_size", 10)
+			desc_label.modulate = Color.LIGHT_GRAY
+			desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			card_vbox.add_child(desc_label)
+		
+		grid.add_child(card_panel)
+
+func _show_modal(modal: Control) -> void:
+	"""Muestra un modal"""
+	if current_modal:
+		_close_modal()
+	
+	var overlay = _create_modal_overlay()
+	overlay.add_child(modal)
+	overlay.visible = true
+	current_modal = modal
+	
+	print("📋 Modal mostrado: ", modal.name)
+
+func _close_modal() -> void:
+	"""Cierra el modal actual"""
+	if current_modal:
+		current_modal.queue_free()
+		current_modal = null
+	
+	if modal_overlay:
+		modal_overlay.visible = false
+	
+	print("📋 Modal cerrado")
+
+func _on_modal_background_clicked(event: InputEvent) -> void:
+	"""Maneja clicks en el fondo del modal"""
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_close_modal()
+
+func show_deck_modal() -> void:
+	"""Muestra el modal con las cartas del mazo"""
+	print("📚 Abriendo modal del mazo...")
+	
+	# Obtener cartas del mazo desde Game.gd
+	var game_node = get_parent()
+	if not game_node or not game_node.has_method("get_deck_cards"):
+		print("❌ No se puede acceder a las cartas del mazo")
+		return
+	
+	var deck_cards = game_node.get_deck_cards()
+	var title = "📚 MAZO (" + str(deck_cards.size()) + " cartas)"
+	
+	var modal = _create_card_modal(title, deck_cards)
+	_show_modal(modal)
+
+func show_discard_modal() -> void:
+	"""Muestra el modal con las cartas de descarte"""
+	print("🗑️ Abriendo modal de descarte...")
+	
+	# Obtener cartas de descarte desde Game.gd
+	var game_node = get_parent()
+	print("🔍 DEBUG: game_node = ", game_node)
+	
+	if not game_node:
+		print("❌ game_node es null!")
+		return
+	
+	if not game_node.has_method("get_discard_cards"):
+		print("❌ game_node no tiene método get_discard_cards")
+		print("🔍 Métodos disponibles en game_node: ", game_node.get_method_list())
+		return
+	
+	print("✅ Llamando a game_node.get_discard_cards()...")
+	var discard_cards = game_node.get_discard_cards()
+	print("🔍 DEBUG: discard_cards recibidas: ", discard_cards.size())
+	
+	if discard_cards.is_empty():
+		print("⚠️ No hay cartas en descarte para mostrar")
+	
+	var title = "🗑️ DESCARTE (" + str(discard_cards.size()) + " cartas)"
+	print("🔍 DEBUG: Creando modal con título: ", title)
+	
+	var modal = _create_card_modal(title, discard_cards)
+	print("🔍 DEBUG: Modal creado, mostrando...")
+	_show_modal(modal)
 
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
@@ -889,9 +1158,19 @@ func _discard_card(card: Node2D) -> void:
 	
 	print("🗑️ Descartando carta: ", card.data.name if card.data else "Sin datos")
 	
-	# Añadir a la pila de descarte
+	# Añadir a la pila de descarte (tanto local como en Player.gd)
 	if card.data:
+		# Añadir al descarte local (para compatibilidad)
 		discard_pile.append(card.data)
+		
+		# Añadir al descarte del Player.gd (sistema principal)
+		var game_node = get_parent()
+		if game_node and game_node.has_method("discard_card_from_hand"):
+			print("🔍 DEBUG: Notificando descarte a Player.gd")
+			game_node.discard_card_from_hand(card.data)
+		else:
+			print("⚠️ No se pudo notificar descarte a Player.gd")
+		
 		_update_discard_button_display()
 	
 	# Remover de la mano
@@ -901,7 +1180,20 @@ func _discard_card(card: Node2D) -> void:
 func _update_discard_button_display() -> void:
 	"""Actualiza el display del botón de descarte"""
 	if discard_button:
-		discard_button.text = str(discard_pile.size())
+		# Obtener el tamaño real del descarte desde Player.gd
+		var game_node = get_parent()
+		var real_discard_size = 0
+		
+		if game_node and game_node.has_method("get_discard_cards"):
+			var discard_cards = game_node.get_discard_cards()
+			real_discard_size = discard_cards.size()
+			print("🔍 DEBUG: Actualizando botón descarte - Cartas reales: ", real_discard_size)
+		else:
+			# Fallback al sistema local si no hay acceso al Player
+			real_discard_size = discard_pile.size()
+			print("🔍 DEBUG: Usando descarte local: ", real_discard_size)
+		
+		discard_button.text = str(real_discard_size)
 
 func get_discard_pile_size() -> int:
 	"""Retorna el tamaño de la pila de descarte"""
