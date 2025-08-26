@@ -6,13 +6,15 @@ extends Control
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
 @onready var player_slots_container = $PlayerChars as HBoxContainer
 @onready var enemy_slots_container  = $EnemyChars as HBoxContainer
-@onready var hand_container = $HandContainer as HandContainer
-@onready var test_button = $TestButton as Button
-@onready var discard_button = $DiscardButton as Button
-@onready var energy_button = $EnergyButton as Button
-@onready var end_turn_button = $EndTurnButton as Button
-@onready var deck_button = $DeckButton as Button
-@onready var overflow_button = $OverflowButton as Button
+@onready var turn_label = get_node_or_null("MainVBox/HBoxContainer/TurnPanel/TurnLabel") as Label
+@onready var energy_label = get_node_or_null("MainVBox/HBoxContainer/EnergyPanel/EnergyLabel") as Label
+@onready var hand_container = get_node_or_null("HandContainer") as HandContainer
+@onready var test_button = get_node_or_null("TestButton") as Button
+@onready var discard_button = get_node_or_null("DiscardButton") as Button
+@onready var energy_button = get_node_or_null("EnergyButton") as Button
+@onready var end_turn_button = get_node_or_null("EndTurnButton") as Button
+@onready var deck_button = get_node_or_null("DeckButton") as Button
+@onready var overflow_button = get_node_or_null("OverflowButton") as Button
 
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
@@ -1224,7 +1226,6 @@ func _initialize_character_slots(container: HBoxContainer, slots_array: Array, c
 # --- FUNCIONES DE UI DISPLAY ---
 func set_turn(turn_num: int):
 	"""Actualiza el display del turno"""
-	var turn_label = get_node_or_null("MainVBox/HBoxContainer/TurnPanel/TurnLabel")
 	if turn_label:
 		turn_label.text = "Turno " + str(turn_num)
 		print("🔄 Turno actualizado: ", turn_num)
@@ -1233,7 +1234,6 @@ func set_turn(turn_num: int):
 
 func set_energy(current_energy: int, max_energy: int = 3):
 	"""Actualiza el display de energía"""
-	var energy_label = get_node_or_null("MainVBox/HBoxContainer/EnergyPanel/EnergyLabel")
 	if energy_label:
 		energy_label.text = "⚡ " + str(current_energy) + "/" + str(max_energy)
 		print("⚡ Display actualizado: ", current_energy, "/", max_energy)

@@ -10,8 +10,8 @@ const PLAYER_DECK_PATH = "res://data/player_deck.json"
 # --- NODOS ---
 @onready var deck = $Deck
 @onready var ui = $GameUI as Control
-@onready var player_manager = $Player
-@onready var enemy_manager = $Enemy
+@onready var player_manager = get_node_or_null("Player")
+@onready var enemy_manager = get_node_or_null("Enemy")
 
 # --- VARIABLES DE JUEGO ---
 var turn_num := 0
