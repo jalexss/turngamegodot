@@ -214,6 +214,11 @@ func _execute_attack_action(action: Dictionary, enemy) -> void:
 		var target = player_chars[action.target_index]
 		if target.hp > 0:
 			print("⚔️ ", enemy.name, " ataca a ", target.name, " por ", action.value, " de daño")
+			
+			# Agregar al log de combate
+			if ui_node and ui_node.has_method("add_enemy_action_log"):
+				ui_node.add_enemy_action_log(enemy.name, "ATTACK", action.value, target.name)
+			
 			_apply_damage_to_character(target, action.value)
 		else:
 			print("💀 Objetivo ", target.name, " ya está muerto")
@@ -224,11 +229,22 @@ func _execute_heal_action(action: Dictionary, enemy) -> void:
 		var target = enemy_characters[action.target_index]
 		if target.hp > 0:
 			print("💚 ", enemy.name, " cura a ", target.name, " por ", action.value, " HP")
+			
+			# Agregar al log de combate
+			if ui_node and ui_node.has_method("add_enemy_action_log"):
+				var heal_text = target.name if target != enemy else "a sí mismo"
+				ui_node.add_enemy_action_log(enemy.name, "HEAL", action.value, heal_text)
+			
 			_apply_heal_to_character(target, action.value)
 
 func _execute_defend_action(action: Dictionary, enemy) -> void:
 	"""Ejecuta una acción de defensa"""
 	print("🛡️ ", enemy.name, " se defiende, ganando ", action.value, " de defensa")
+	
+	# Agregar al log de combate
+	if ui_node and ui_node.has_method("add_enemy_action_log"):
+		ui_node.add_enemy_action_log(enemy.name, "DEFEND", action.value)
+	
 	_apply_shield_to_character(enemy, action.value)
 
 # --- APLICACIÓN DE EFECTOS ---

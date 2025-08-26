@@ -18,6 +18,15 @@ const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 @onready var deck_button = get_node_or_null("DeckButton") as Button
 @onready var overflow_button = get_node_or_null("OverflowButton") as Button
 
+# --- NODOS DEL TOPBAR Y LOG DE COMBATE ---
+var topbar_container: Panel = null
+var combat_log_button: Button = null
+var menu_button: Button = null
+var combat_log_panel: Panel = null
+var combat_log_scroll: ScrollContainer = null
+var combat_log_content: VBoxContainer = null
+var combat_log_visible: bool = false
+
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
 var enemy_slots_nodes: Array = []
@@ -42,10 +51,17 @@ var pending_cards: Array = []  # Cartas que no se pudieron añadir a la mano
 var dragged_card: Node2D = null
 var drag_start_position: Vector2 = Vector2.ZERO
 
+# Sistema de log de combate
+var combat_log_entries: Array[String] = []
+const MAX_LOG_ENTRIES: int = 100  # Máximo de entradas en el log
+
 const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn")
 
 # --- FUNCIONES DEL MOTOR ---
 func _ready() -> void:
+	# Crear topbar y sistema de log primero
+	_create_topbar_system()
+	
 	# Crear nodos faltantes automáticamente
 	_create_missing_nodes()
 	
@@ -64,6 +80,9 @@ func _ready() -> void:
 	
 	# Crear nodos faltantes si es necesario
 	_create_missing_nodes()
+	
+	# Agregar entrada inicial al log
+	add_combat_log_entry("🎮 ¡Combate iniciado!")
 
 func _create_missing_nodes() -> void:
 	# Crear HandContainer si no existe
@@ -172,6 +191,173 @@ func _create_missing_nodes() -> void:
 		discard_button.pressed.connect(_on_discard_button_pressed)
 		_update_discard_button_display()
 		print("DEBUG: DiscardButton creado y conectado")
+
+# --- SISTEMA DE TOPBAR Y LOG DE COMBATE ---
+func _create_topbar_system() -> void:
+	"""Crea el sistema de topbar con botones y log de combate"""
+	print("🔧 Creando sistema de topbar y log de combate...")
+	
+	# Crear el contenedor principal del topbar
+	topbar_container = Panel.new()
+	topbar_container.name = "TopbarContainer"
+	topbar_container.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	topbar_container.size.y = 60  # Altura del topbar
+	topbar_container.z_index = 50  # Por encima de otros elementos
+	
+	# Estilo del topbar
+	var topbar_style = StyleBoxFlat.new()
+	topbar_style.bg_color = Color(0.15, 0.15, 0.2, 0.95)  # Fondo oscuro semi-transparente
+	topbar_style.border_width_bottom = 2
+	topbar_style.border_color = Color(0.4, 0.4, 0.5, 1.0)  # Borde inferior
+	topbar_container.add_theme_stylebox_override("panel", topbar_style)
+	
+	add_child(topbar_container)
+	
+	# Crear HBoxContainer para organizar los botones
+	var topbar_hbox = HBoxContainer.new()
+	topbar_hbox.name = "TopbarHBox"
+	topbar_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	topbar_hbox.add_theme_constant_override("separation", 20)
+	topbar_container.add_child(topbar_hbox)
+	
+	# Spacer izquierdo para centrar el botón de log
+	var left_spacer = Control.new()
+	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	topbar_hbox.add_child(left_spacer)
+	
+	# Botón de Log de Combate (centrado)
+	combat_log_button = Button.new()
+	combat_log_button.name = "CombatLogButton"
+	combat_log_button.text = "📜 LOG DE COMBATE"
+	combat_log_button.custom_minimum_size = Vector2(200, 40)
+	combat_log_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	
+	# Estilo del botón de log
+	var log_button_style = StyleBoxFlat.new()
+	log_button_style.bg_color = Color(0.3, 0.4, 0.6, 0.8)
+	log_button_style.corner_radius_top_left = 8
+	log_button_style.corner_radius_top_right = 8
+	log_button_style.corner_radius_bottom_left = 8
+	log_button_style.corner_radius_bottom_right = 8
+	log_button_style.border_width_left = 1
+	log_button_style.border_width_right = 1
+	log_button_style.border_width_top = 1
+	log_button_style.border_width_bottom = 1
+	log_button_style.border_color = Color(0.5, 0.6, 0.8, 1.0)
+	combat_log_button.add_theme_stylebox_override("normal", log_button_style)
+	
+	# Estilo hover del botón
+	var log_button_hover_style = log_button_style.duplicate()
+	log_button_hover_style.bg_color = Color(0.4, 0.5, 0.7, 0.9)
+	combat_log_button.add_theme_stylebox_override("hover", log_button_hover_style)
+	
+	combat_log_button.pressed.connect(_on_combat_log_button_pressed)
+	topbar_hbox.add_child(combat_log_button)
+	
+	# Spacer derecho
+	var right_spacer = Control.new()
+	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	topbar_hbox.add_child(right_spacer)
+	
+	# Botón de Menú (esquina derecha)
+	menu_button = Button.new()
+	menu_button.name = "MenuButton"
+	menu_button.text = "☰ MENÚ"
+	menu_button.custom_minimum_size = Vector2(100, 40)
+	menu_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	
+	# Estilo del botón de menú
+	var menu_button_style = StyleBoxFlat.new()
+	menu_button_style.bg_color = Color(0.5, 0.3, 0.3, 0.8)
+	menu_button_style.corner_radius_top_left = 8
+	menu_button_style.corner_radius_top_right = 8
+	menu_button_style.corner_radius_bottom_left = 8
+	menu_button_style.corner_radius_bottom_right = 8
+	menu_button_style.border_width_left = 1
+	menu_button_style.border_width_right = 1
+	menu_button_style.border_width_top = 1
+	menu_button_style.border_width_bottom = 1
+	menu_button_style.border_color = Color(0.7, 0.5, 0.5, 1.0)
+	menu_button.add_theme_stylebox_override("normal", menu_button_style)
+	
+	# Estilo hover del botón de menú
+	var menu_button_hover_style = menu_button_style.duplicate()
+	menu_button_hover_style.bg_color = Color(0.6, 0.4, 0.4, 0.9)
+	menu_button.add_theme_stylebox_override("hover", menu_button_hover_style)
+	
+	menu_button.pressed.connect(_on_menu_button_pressed)
+	topbar_hbox.add_child(menu_button)
+	
+	# Crear el panel del log de combate (inicialmente oculto)
+	_create_combat_log_panel()
+	
+	print("✅ Sistema de topbar creado exitosamente")
+
+func _create_combat_log_panel() -> void:
+	"""Crea el panel del log de combate"""
+	combat_log_panel = Panel.new()
+	combat_log_panel.name = "CombatLogPanel"
+	combat_log_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	combat_log_panel.custom_minimum_size = Vector2(800, 400)
+	combat_log_panel.visible = false
+	combat_log_panel.z_index = 100  # Por encima de todo
+	
+	# Estilo del panel de log
+	var log_panel_style = StyleBoxFlat.new()
+	log_panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
+	log_panel_style.corner_radius_top_left = 12
+	log_panel_style.corner_radius_top_right = 12
+	log_panel_style.corner_radius_bottom_left = 12
+	log_panel_style.corner_radius_bottom_right = 12
+	log_panel_style.border_width_left = 2
+	log_panel_style.border_width_right = 2
+	log_panel_style.border_width_top = 2
+	log_panel_style.border_width_bottom = 2
+	log_panel_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
+	combat_log_panel.add_theme_stylebox_override("panel", log_panel_style)
+	
+	add_child(combat_log_panel)
+	
+	# VBoxContainer principal del log
+	var log_vbox = VBoxContainer.new()
+	log_vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	log_vbox.add_theme_constant_override("separation", 10)
+	combat_log_panel.add_child(log_vbox)
+	
+	# Header del log
+	var log_header = HBoxContainer.new()
+	log_header.custom_minimum_size = Vector2(0, 50)
+	log_vbox.add_child(log_header)
+	
+	# Título del log
+	var log_title = Label.new()
+	log_title.text = "📜 LOG DE COMBATE"
+	log_title.add_theme_font_size_override("font_size", 20)
+	log_title.modulate = Color.WHITE
+	log_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_header.add_child(log_title)
+	
+	# Botón cerrar log
+	var close_log_button = Button.new()
+	close_log_button.text = "✕ CERRAR"
+	close_log_button.custom_minimum_size = Vector2(100, 35)
+	close_log_button.modulate = Color(1.2, 0.8, 0.8)
+	close_log_button.pressed.connect(_on_close_combat_log_pressed)
+	log_header.add_child(close_log_button)
+	
+	# ScrollContainer para el contenido del log
+	combat_log_scroll = ScrollContainer.new()
+	combat_log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	combat_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	log_vbox.add_child(combat_log_scroll)
+	
+	# VBoxContainer para las entradas del log
+	combat_log_content = VBoxContainer.new()
+	combat_log_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	combat_log_content.add_theme_constant_override("separation", 5)
+	combat_log_scroll.add_child(combat_log_content)
+	
+	print("✅ Panel de log de combate creado")
 
 func _input(event: InputEvent) -> void:
 	# No procesar input de cartas si no son interactivas
@@ -432,6 +618,106 @@ func _on_overflow_button_pressed() -> void:
 	if pending_cards.is_empty():
 		hide_hand_full_message()
 
+# --- CALLBACKS DEL TOPBAR Y LOG DE COMBATE ---
+func _on_combat_log_button_pressed() -> void:
+	"""Callback para mostrar/ocultar el log de combate"""
+	print("📜 Botón de log de combate presionado")
+	toggle_combat_log()
+
+func _on_menu_button_pressed() -> void:
+	"""Callback para el botón de menú"""
+	print("☰ Botón de menú presionado")
+	# Por ahora solo mostrar mensaje
+	add_combat_log_entry("☰ Menú presionado (funcionalidad pendiente)")
+
+func _on_close_combat_log_pressed() -> void:
+	"""Callback para cerrar el log de combate"""
+	print("✕ Cerrando log de combate")
+	hide_combat_log()
+
+func toggle_combat_log() -> void:
+	"""Alterna la visibilidad del log de combate"""
+	if combat_log_visible:
+		hide_combat_log()
+	else:
+		show_combat_log()
+
+func show_combat_log() -> void:
+	"""Muestra el log de combate"""
+	if combat_log_panel:
+		combat_log_panel.visible = true
+		combat_log_visible = true
+		
+		# Hacer scroll hacia abajo para mostrar las entradas más recientes
+		if combat_log_scroll:
+			await get_tree().process_frame  # Esperar un frame para que se actualice el layout
+			combat_log_scroll.scroll_vertical = int(combat_log_scroll.get_v_scroll_bar().max_value)
+		
+		print("📜 Log de combate mostrado")
+
+func hide_combat_log() -> void:
+	"""Oculta el log de combate"""
+	if combat_log_panel:
+		combat_log_panel.visible = false
+		combat_log_visible = false
+		print("📜 Log de combate ocultado")
+
+func add_combat_log_entry(message: String) -> void:
+	"""Añade una entrada al log de combate"""
+	# Agregar timestamp
+	var time = Time.get_datetime_dict_from_system()
+	var timestamp = "[%02d:%02d:%02d] " % [time.hour, time.minute, time.second]
+	var full_message = timestamp + message
+	
+	# Añadir a la lista de entradas
+	combat_log_entries.append(full_message)
+	
+	# Limitar el número de entradas
+	if combat_log_entries.size() > MAX_LOG_ENTRIES:
+		combat_log_entries.pop_front()
+	
+	# Crear label para la nueva entrada
+	if combat_log_content:
+		var entry_label = Label.new()
+		entry_label.text = full_message
+		entry_label.add_theme_font_size_override("font_size", 12)
+		entry_label.modulate = Color.WHITE
+		entry_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		entry_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		# Alternar colores de fondo para mejor legibilidad
+		if combat_log_entries.size() % 2 == 0:
+			entry_label.modulate = Color(0.9, 0.9, 0.9, 1.0)
+		
+		combat_log_content.add_child(entry_label)
+		
+		# Remover entradas viejas del UI si hay demasiadas
+		var children = combat_log_content.get_children()
+		if children.size() > MAX_LOG_ENTRIES:
+			children[0].queue_free()
+		
+		# Auto-scroll hacia abajo si el log está visible
+		if combat_log_visible and combat_log_scroll:
+			await get_tree().process_frame
+			combat_log_scroll.scroll_vertical = int(combat_log_scroll.get_v_scroll_bar().max_value)
+	
+	print("📝 Log: ", message)
+
+func add_enemy_action_log(enemy_name: String, action_type: String, value: int, target_name: String = "") -> void:
+	"""Función pública para que Enemy.gd pueda agregar entradas al log"""
+	var action_text = ""
+	match action_type:
+		"ATTACK":
+			action_text = "⚔️ " + enemy_name + " ataca a " + target_name + " por " + str(value) + " de daño"
+		"HEAL":
+			action_text = "💚 " + enemy_name + " se cura " + str(value) + " HP"
+		"DEFEND":
+			action_text = "🛡️ " + enemy_name + " se defiende, ganando " + str(value) + " de defensa"
+		_:
+			action_text = "🤖 " + enemy_name + " usa " + action_type + " (" + str(value) + ")"
+	
+	add_combat_log_entry(action_text)
+
 func get_current_hand_size() -> int:
 	"""Obtiene el tamaño actual de la mano (visual)"""
 	if hand_container:
@@ -449,6 +735,12 @@ func _get_player_data_hand_size() -> int:
 func set_player_turn_active(active: bool) -> void:
 	"""Habilita/deshabilita controles durante el turno del jugador"""
 	print("🎮 Turno del jugador activo: ", active)
+	
+	# Agregar al log de combate
+	if active:
+		add_combat_log_entry("🎮 Es el turno del jugador")
+	else:
+		add_combat_log_entry("🤖 Es el turno de los enemigos")
 	
 	# Botones que se deshabilitan durante turno enemigo
 	if test_button:
@@ -949,6 +1241,9 @@ func _on_character_targeted(character_data: CharacterData) -> void:
 	
 	print("✅ Carta aplicada: ", selected_card.data.name, " → ", character_data.name, " (Coste: ", card_cost, ")")
 	
+	# Agregar al log de combate
+	add_combat_log_entry("🃏 Jugador usa " + selected_card.data.name + " en " + character_data.name + " (⚡" + str(card_cost) + ")")
+	
 	# Aplicar efectos de la carta
 	_apply_card_effects(selected_card.data, character_data)
 	
@@ -1045,8 +1340,19 @@ func _apply_damage(character: CharacterData, damage: int) -> void:
 	print("  - HP perdido: ", hp_lost)
 	print("  - HP final: ", character.hp, "/", character.max_hp)
 	
+	# Agregar al log de combate
+	if actual_damage > 0:
+		var damage_text = "💥 " + character.name + " recibe " + str(actual_damage) + " de daño"
+		if character.defense > 0:
+			damage_text += " (" + str(damage) + " - " + str(character.defense) + " defensa)"
+		damage_text += " → HP: " + str(character.hp) + "/" + str(character.max_hp)
+		add_combat_log_entry(damage_text)
+	else:
+		add_combat_log_entry("🛡️ " + character.name + " bloquea todo el daño con su defensa")
+	
 	if character.hp == 0:
 		print("  ☠️ PERSONAJE DERROTADO!")
+		add_combat_log_entry("☠️ " + character.name + " ha sido derrotado!")
 	
 	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
 	
@@ -1072,11 +1378,18 @@ func _apply_heal(character: CharacterData, heal: int) -> void:
 		print("  - Sobrecuración (desperdiciada): ", overheal)
 	print("  - HP final: ", character.hp, "/", character.max_hp)
 	
+	# Agregar al log de combate
+	if actual_heal > 0:
+		add_combat_log_entry("💚 " + character.name + " se cura " + str(actual_heal) + " HP → HP: " + str(character.hp) + "/" + str(character.max_hp))
+	else:
+		add_combat_log_entry("💚 " + character.name + " ya tiene HP completo")
+	
 	print("💚 ", character.name, " se cura ", actual_heal, " HP → HP: ", character.hp, "/", character.max_hp)
 
 func _apply_shield(character: CharacterData, shield: int) -> void:
 	"""Aplica escudo a un personaje (por ahora solo aumenta defensa temporalmente)"""
 	character.defense += shield
+	add_combat_log_entry("🛡️ " + character.name + " gana " + str(shield) + " de escudo (Defensa: " + str(character.defense) + ")")
 	print("🛡️ ", character.name, " gana ", shield, " de escudo (Defensa: ", character.defense, ")")
 
 func _apply_buff(character: CharacterData, buff: int) -> void:
@@ -1109,6 +1422,10 @@ func _apply_status_effect(character: CharacterData, status_data: Dictionary, eff
 	
 	# Aplicar el efecto
 	effect_manager.apply_effect(character, status_effect)
+	
+	# Agregar al log de combate
+	add_combat_log_entry("🔮 " + character.name + " recibe efecto: " + status_effect.get_display_text())
+	
 	print("🔮 Efecto de estado aplicado: ", status_effect.get_display_text())
 
 func _apply_status_effect_from_effect(character: CharacterData, effect_data: Dictionary, effect_manager: EffectManagerClass) -> void:
@@ -1348,6 +1665,7 @@ func set_turn(turn_num: int):
 	if turn_label:
 		turn_label.text = "Turno " + str(turn_num)
 		print("🔄 Turno actualizado: ", turn_num)
+		add_combat_log_entry("🔄 Turno " + str(turn_num) + " iniciado")
 	else:
 		print("⚠️ TurnLabel no encontrado para actualizar display")
 
