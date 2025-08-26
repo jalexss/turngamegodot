@@ -19,10 +19,12 @@ func _ready() -> void:
 
 # --- FUNCIONES PÚBLICAS ---
 func add_card(card: Node2D) -> void:
-	print("DEBUG: HandContainer.add_card() - Carta: ", card)
+	print("🃏 HandContainer.add_card() - Carta: ", card)
 	if not card:
-		print("DEBUG: ERROR - carta es null")
+		print("❌ ERROR - carta es null")
 		return
+	
+	print("🔍 Hijos antes de añadir: ", get_child_count())
 	
 	# Configurar propiedades básicas
 	card.visible = true
@@ -34,17 +36,32 @@ func add_card(card: Node2D) -> void:
 	
 	# Añadir al contenedor
 	add_child(card)
-	print("DEBUG: Carta añadida. Total: ", get_child_count())
+	var new_count = get_child_count()
+	print("🔍 Hijos después de añadir: ", new_count)
+	print("✅ Carta añadida exitosamente. Total: ", new_count)
 	
 	# Reorganizar cartas en semi-esfera (diferido para asegurar inicialización completa)
+	if not is_inside_tree():
+		await tree_entered
 	call_deferred("_arrange_cards_in_hemisphere")
 
 func clear_cards() -> void:
-	print("DEBUG: Limpiando cartas...")
-	for child in get_children():
+	var child_count = get_child_count()
+	print("🧹 Limpiando ", child_count, " cartas del HandContainer...")
+	
+	# Crear copia del array de hijos para evitar problemas de modificación durante iteración
+	var children_to_remove = get_children().duplicate()
+	
+	for child in children_to_remove:
+		print("🗑️ Eliminando carta: ", child)
+		remove_child(child)
 		child.queue_free()
+	
 	card_original_scales.clear()
 	card_original_z_indices.clear()
+	
+	var final_count = get_child_count()
+	print("✅ HandContainer limpiado - Antes: ", child_count, " | Después: ", final_count)
 
 func get_card_count() -> int:
 	return get_child_count()
@@ -52,10 +69,12 @@ func get_card_count() -> int:
 # --- POSICIONAMIENTO EN SEMI-ESFERA ---
 func _arrange_cards_in_hemisphere() -> void:
 	var card_count = get_child_count()
-	print("DEBUG: Organizando ", card_count, " cartas en semi-esfera")
 	
 	if card_count == 0:
+		# No imprimir debug para 0 cartas para evitar spam
 		return
+	
+	print("DEBUG: Organizando ", card_count, " cartas en semi-esfera")
 	
 	# Calcular ángulos para distribución inteligente
 	var angle_step: float = 0.0

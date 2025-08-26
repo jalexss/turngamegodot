@@ -195,3 +195,11 @@ func shuffle() -> void:
 
 func draw() -> CardDataResource: # Tipo de retorno más específico
 	return cards.pop_front() if not cards.is_empty() else null
+
+func get_cards_remaining() -> int:
+	"""Retorna la cantidad de cartas restantes en el deck"""
+	return cards.size()
+
+func is_empty() -> bool:
+	"""Verifica si el deck está vacío"""
+	return cards.is_empty()

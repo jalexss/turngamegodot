@@ -11,6 +11,8 @@ extends Control
 @onready var discard_button = $DiscardButton as Button
 @onready var energy_button = $EnergyButton as Button
 @onready var end_turn_button = $EndTurnButton as Button
+@onready var deck_button = $DeckButton as Button
+@onready var overflow_button = $OverflowButton as Button
 
 # --- VARIABLES DE ESTADO ---
 var player_slots_nodes: Array = []
@@ -29,6 +31,7 @@ var hovered_target: Control = null  # Personaje bajo el cursor durante targeting
 
 # Sistema de descarte
 var discard_pile: Array[CardData] = []
+var pending_cards: Array = []  # Cartas que no se pudieron añadir a la mano
 
 # Sistema de drag & drop
 var dragged_card: Node2D = null
@@ -110,6 +113,38 @@ func _create_missing_nodes() -> void:
 		# Conectar la señal
 		end_turn_button.pressed.connect(_on_end_turn_button_pressed)
 		print("DEBUG: EndTurnButton creado y conectado")
+	
+	# Crear DeckButton si no existe
+	if not deck_button:
+		print("DEBUG: Creando DeckButton automáticamente...")
+		var new_deck_button = Button.new()
+		new_deck_button.name = "DeckButton"
+		new_deck_button.text = "📚 20"
+		new_deck_button.position = Vector2(50, 150)  # Debajo del TestButton
+		new_deck_button.size = Vector2(100, 80)
+		# Estilo del mazo
+		new_deck_button.modulate = Color(0.8, 0.9, 1.0)  # Azul claro
+		add_child(new_deck_button)
+		deck_button = new_deck_button
+		# No necesita señal, es solo visual
+		print("DEBUG: DeckButton creado")
+	
+	# Crear OverflowButton si no existe (inicialmente oculto)
+	if not overflow_button:
+		print("DEBUG: Creando OverflowButton automáticamente...")
+		var new_overflow_button = Button.new()
+		new_overflow_button.name = "OverflowButton"
+		new_overflow_button.text = "📥 +0"
+		new_overflow_button.position = Vector2(170, 150)  # Al lado del DeckButton
+		new_overflow_button.size = Vector2(120, 80)
+		# Estilo llamativo
+		new_overflow_button.modulate = Color(1.2, 1.0, 0.8)  # Naranja claro
+		new_overflow_button.visible = false  # Oculto por defecto
+		add_child(new_overflow_button)
+		overflow_button = new_overflow_button
+		# Conectar la señal
+		overflow_button.pressed.connect(_on_overflow_button_pressed)
+		print("DEBUG: OverflowButton creado y conectado")
 	
 	# Crear DiscardButton si no existe
 	if not discard_button:
@@ -321,6 +356,58 @@ func _on_end_turn_button_pressed() -> void:
 		print("🔄 Turno del jugador terminado")
 	else:
 		print("DEBUG: ERROR - No se encontró el método end_player_turn en el nodo padre")
+
+# --- FUNCIÓN OVERFLOW BUTTON ---
+func _on_overflow_button_pressed() -> void:
+	print("📥 Botón de cartas pendientes presionado!")
+	
+	if pending_cards.is_empty():
+		print("⚠️ No hay cartas pendientes")
+		return
+	
+	# DEBUG CRÍTICO: Verificar estado actual
+	var visual_hand_size = get_current_hand_size()
+	var data_hand_size = _get_player_data_hand_size()
+	
+	print("🔍 ESTADO CRÍTICO:")
+	print("  - Cartas visuales: ", visual_hand_size)
+	print("  - Cartas en datos: ", data_hand_size)
+	print("  - MAX_HAND_SIZE: ", MAX_HAND_SIZE)
+	print("  - Cartas pendientes: ", pending_cards.size())
+	
+	# Calcular cuántas cartas se pueden añadir
+	var available_space = MAX_HAND_SIZE - get_current_hand_size()
+	var cards_to_add = min(available_space, pending_cards.size())
+	
+	print("📊 Espacio disponible: ", available_space, " | Cartas pendientes: ", pending_cards.size())
+	
+	# Añadir cartas a la mano
+	for i in range(cards_to_add):
+		var card_data = pending_cards.pop_front()
+		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
+		card.set_data(card_data)
+		add_card_to_hand(card)
+		print("📥 Carta añadida desde pendientes: ", card_data.name)
+	
+	# Actualizar displays
+	update_overflow_count()
+	
+	# Ocultar mensaje de mano llena si ya no hay cartas pendientes
+	if pending_cards.is_empty():
+		hide_hand_full_message()
+
+func get_current_hand_size() -> int:
+	"""Obtiene el tamaño actual de la mano (visual)"""
+	if hand_container:
+		return hand_container.get_card_count()
+	return 0
+
+func _get_player_data_hand_size() -> int:
+	"""Obtiene el tamaño de la mano según los datos del Player"""
+	var game_node = get_parent()
+	if game_node and game_node.has_method("get_player_hand_size"):
+		return game_node.get_player_hand_size()
+	return -1  # Error
 
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
@@ -659,6 +746,51 @@ func _clear_enemy_action_previews() -> void:
 	"""Limpia todos los previews de acciones enemigas"""
 	for slot in enemy_slots_nodes:
 		slot.clear_action_previews()
+
+# --- SISTEMA DE MAZO Y CARTAS PENDIENTES ---
+func add_pending_card(card_data) -> void:
+	"""Añade una carta a las cartas pendientes"""
+	pending_cards.append(card_data)
+	update_overflow_count()
+	print("📥 Carta añadida a pendientes: ", card_data.name, " (Total: ", pending_cards.size(), ")")
+
+func update_deck_count(count: int) -> void:
+	"""Actualiza el contador del mazo"""
+	if deck_button:
+		deck_button.text = "📚 " + str(count)
+		print("📚 Mazo actualizado: ", count, " cartas")
+
+func update_overflow_count() -> void:
+	"""Actualiza el contador de cartas pendientes"""
+	if overflow_button:
+		var count = pending_cards.size()
+		overflow_button.text = "📥 +" + str(count)
+		overflow_button.visible = count > 0
+		print("📥 Cartas pendientes: ", count)
+
+func show_hand_full_message() -> void:
+	"""Muestra mensaje de mano llena"""
+	# Crear label temporal si no existe
+	var message_label = get_node_or_null("HandFullMessage")
+	if not message_label:
+		message_label = Label.new()
+		message_label.name = "HandFullMessage"
+		message_label.text = "⚠️ MANO LLENA"
+		message_label.position = Vector2(400, 100)
+		message_label.size = Vector2(200, 50)
+		message_label.modulate = Color.YELLOW
+		message_label.add_theme_font_size_override("font_size", 20)
+		add_child(message_label)
+	
+	message_label.visible = true
+	print("⚠️ Mensaje de mano llena mostrado")
+
+func hide_hand_full_message() -> void:
+	"""Oculta mensaje de mano llena"""
+	var message_label = get_node_or_null("HandFullMessage")
+	if message_label:
+		message_label.visible = false
+		print("✅ Mensaje de mano llena ocultado")
 
 # --- SISTEMA DE DESCARTE ---
 func _discard_card(card: Node2D) -> void:

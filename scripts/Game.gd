@@ -46,17 +46,19 @@ func _ready() -> void:
 		player_manager.hand_changed.connect(_on_player_hand_changed)
 		player_manager.card_played.connect(_on_player_card_played)
 
-	# Cargar deck del jugador
+	# Cargar deck del jugador (20 cartas con repeticiones)
 	print("DEBUG: Cargando deck del jugador...")
-	var player_card_ids: Array = _get_player_deck()
+	var player_card_ids: Array = _create_20_card_deck()
 	print("DEBUG: IDs de cartas obtenidos: ", player_card_ids)
+	print("DEBUG: Tamaño del deck: ", player_card_ids.size())
+	
 	if player_card_ids.is_empty():
 		push_error("Game.gd: No se pudo cargar el deck del jugador.")
 		deck.load_deck_from_ids([])
 	else:
 		print("DEBUG: Cargando ", player_card_ids.size(), " cartas en el deck...")
 		deck.load_deck_from_ids(player_card_ids)
-		print("DEBUG: Deck cargado exitosamente")
+		print("DEBUG: Deck de 20 cartas cargado exitosamente")
 	
 	_start_turn()
 
@@ -82,11 +84,11 @@ func _start_turn() -> void:
 	
 	print("=== 🎮 TURNO DEL JUGADOR ", turn_num, " ===")
 	ui.set_turn(turn_num)
-	ui.clear_hand()
+	# NO limpiar la mano aquí - el Player manager se encarga de las cartas
 	ui.update_player_chars(player_chars)
 	ui.update_enemy_chars(enemy_chars)
 	
-	# Iniciar turno del jugador
+	# Iniciar turno del jugador (esto robará las cartas)
 	if player_manager:
 		player_manager.start_turn()
 	
@@ -290,12 +292,37 @@ func _on_player_energy_changed(current: int, maximum: int) -> void:
 
 func _on_player_hand_changed(cards: Array) -> void:
 	"""Callback cuando cambia la mano del jugador"""
-	# Actualizar UI de cartas
-	ui.clear_hand()
+	print("🔄 Mano del jugador cambió - Cartas de datos: ", cards.size())
+	
+	# Mostrar nombres de las cartas para debug
+	var card_names = []
 	for card_data in cards:
+		card_names.append(card_data.name)
+	print("📋 Cartas en datos: ", card_names)
+	
+	# SIEMPRE sincronizar la mano visual con los datos
+	var current_hand_size = ui.get_current_hand_size()
+	print("📊 Tamaño visual actual: ", current_hand_size, " | Tamaño de datos: ", cards.size())
+	
+	print("🔄 SINCRONIZANDO mano visual con datos...")
+	
+	# Limpiar mano actual SIEMPRE
+	ui.clear_hand()
+	print("🧹 Mano visual limpiada")
+	
+	# Crear cartas visuales para TODOS los datos
+	for i in range(cards.size()):
+		var card_data = cards[i]
 		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
 		card.set_data(card_data)
 		ui.add_card_to_hand(card)
+		print("🃏 Carta visual creada: ", card_data.name, " (", i+1, "/", cards.size(), ")")
+	
+	var final_visual_size = ui.get_current_hand_size()
+	print("✅ Sincronización completa - Datos: ", cards.size(), " | Visual: ", final_visual_size)
+	
+	if final_visual_size != cards.size():
+		print("⚠️ ADVERTENCIA: Aún hay desincronización después de recrear!")
 
 func _on_player_card_played(card_data) -> void:
 	"""Callback cuando el jugador juega una carta"""
@@ -322,6 +349,54 @@ func get_player_characters() -> Array:
 func get_enemy_characters() -> Array:
 	"""Retorna los personajes enemigos"""
 	return enemy_chars
+
+func get_player_hand_size() -> int:
+	"""Retorna el tamaño de la mano del jugador según los datos"""
+	if player_manager and player_manager.has_method("get_hand_size"):
+		return player_manager.get_hand_size()
+	return -1
+
+# --- SISTEMA DE DECK DE 20 CARTAS ---
+func _create_20_card_deck() -> Array:
+	"""Crea un deck de exactamente 20 cartas con repeticiones"""
+	var base_cards = _get_player_available_cards()
+	var deck_20_cards = []
+	
+	print("🃏 Creando deck de 20 cartas...")
+	print("📊 Cartas base disponibles: ", base_cards.size())
+	
+	if base_cards.is_empty():
+		print("❌ No hay cartas disponibles para el jugador")
+		return []
+	
+	# Llenar el deck hasta 20 cartas
+	while deck_20_cards.size() < 20:
+		for card_id in base_cards:
+			if deck_20_cards.size() >= 20:
+				break
+			deck_20_cards.append(card_id)
+	
+	# Mezclar el deck
+	deck_20_cards.shuffle()
+	
+	print("✅ Deck de 20 cartas creado:")
+	print("📋 Contenido: ", deck_20_cards)
+	
+	# Contar repeticiones para debug
+	var card_counts = {}
+	for card_id in deck_20_cards:
+		if card_counts.has(card_id):
+			card_counts[card_id] += 1
+		else:
+			card_counts[card_id] = 1
+	
+	print("📊 Distribución de cartas:")
+	for card_id in card_counts.keys():
+		var card_def = deck.all_card_definitions.get(card_id)
+		var card_name = card_def.name if card_def else "Desconocida"
+		print("  - ", card_name, " (ID:", card_id, "): ", card_counts[card_id], " copias")
+	
+	return deck_20_cards
 
 # --- FUNCIONES OBSOLETAS REMOVIDAS ---
 # Las funciones de generación y ejecución de acciones enemigas
