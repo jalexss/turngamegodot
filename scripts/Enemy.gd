@@ -54,6 +54,9 @@ func generate_actions() -> void:
 	
 	if planned_actions.is_empty():
 		print("⚠️ No se generaron acciones - Todos los enemigos están muertos o sin acciones")
+	else:
+		# Combinar acciones similares antes de emitir
+		planned_actions = _combine_similar_actions_for_all_enemies(planned_actions)
 	
 	actions_generated.emit(planned_actions)
 
@@ -260,6 +263,67 @@ func _apply_shield_to_character(character, shield: int) -> void:
 	# Actualizar UI
 	if ui_node and ui_node.has_method("_update_character_display"):
 		ui_node._update_character_display(character)
+
+# --- COMBINACIÓN DE ACCIONES ---
+func _combine_similar_actions_for_all_enemies(actions: Array) -> Array:
+	"""Combina acciones similares para todos los enemigos"""
+	if actions.is_empty():
+		return actions
+	
+	print("🔄 Combinando acciones similares para todos los enemigos...")
+	print("  - Acciones originales: ", actions.size())
+	
+	# Agrupar acciones por enemigo
+	var actions_by_enemy = {}
+	for action in actions:
+		var enemy_index = action.enemy_index
+		if not actions_by_enemy.has(enemy_index):
+			actions_by_enemy[enemy_index] = []
+		actions_by_enemy[enemy_index].append(action)
+	
+	# Combinar acciones para cada enemigo
+	var all_combined_actions = []
+	for enemy_index in actions_by_enemy.keys():
+		var enemy_actions = actions_by_enemy[enemy_index]
+		var combined_actions = _combine_similar_actions_for_enemy(enemy_actions)
+		all_combined_actions.append_array(combined_actions)
+	
+	print("  - Acciones combinadas: ", all_combined_actions.size())
+	return all_combined_actions
+
+func _combine_similar_actions_for_enemy(actions: Array) -> Array:
+	"""Combina acciones similares del mismo enemigo en una sola acción"""
+	if actions.is_empty():
+		return actions
+	
+	var enemy_name = actions[0].enemy_name if actions.size() > 0 else "Desconocido"
+	print("  🤖 Combinando acciones para ", enemy_name, " (", actions.size(), " acciones)")
+	
+	# Diccionario para agrupar acciones por tipo y target
+	var action_groups = {}
+	
+	for action in actions:
+		# Crear clave única basada en tipo, target_type y target_index
+		var key = action.type + "_" + action.target_type + "_" + str(action.target_index)
+		
+		if not action_groups.has(key):
+			# Primera acción de este tipo, crear grupo
+			action_groups[key] = action.duplicate()
+			print("    - Nueva acción: ", action.type, " ", action.value)
+		else:
+			# Acción similar encontrada, combinar valores
+			var existing_action = action_groups[key]
+			var old_value = existing_action.value
+			existing_action.value += action.value
+			print("    - Combinando: ", action.type, " ", old_value, " + ", action.value, " = ", existing_action.value)
+	
+	# Convertir diccionario de vuelta a array
+	var combined_actions = []
+	for key in action_groups.keys():
+		combined_actions.append(action_groups[key])
+	
+	print("    ✅ ", enemy_name, ": ", actions.size(), " → ", combined_actions.size(), " acciones")
+	return combined_actions
 
 # --- GETTERS ---
 func get_planned_actions() -> Array:

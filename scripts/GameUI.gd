@@ -1077,7 +1077,7 @@ func show_enemy_action_previews(actions: Array) -> void:
 			actions_by_enemy[enemy_index] = []
 		actions_by_enemy[enemy_index].append(action)
 	
-	# Mostrar acciones en cada slot enemigo
+	# Mostrar acciones en cada slot enemigo (ya vienen combinadas desde Enemy.gd)
 	for enemy_index in actions_by_enemy.keys():
 		if enemy_index < enemy_slots_nodes.size():
 			var slot = enemy_slots_nodes[enemy_index]
