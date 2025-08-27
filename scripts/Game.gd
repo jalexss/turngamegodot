@@ -68,6 +68,11 @@ func _ready() -> void:
 
 func _create_missing_managers() -> void:
 	"""Crea los nodos Player, Enemy y EffectManager si no existen"""
+	# Actualizar referencias primero
+	player_manager = get_node_or_null("Player")
+	enemy_manager = get_node_or_null("Enemy")
+	effect_manager = get_node_or_null("EffectManager")
+	
 	if not player_manager:
 		print("DEBUG: Creando Player manager...")
 		var new_player = preload("res://scripts/Player.gd").new()
@@ -94,7 +99,8 @@ func _start_turn() -> void:
 	current_phase = TurnPhase.PLAYER
 	
 	print("=== 🎮 TURNO DEL JUGADOR ", turn_num, " ===")
-	ui.set_turn(turn_num)
+	if ui and ui.has_method("set_turn"):
+		ui.set_turn(turn_num)
 	
 	# Procesar efectos de inicio de turno para jugadores
 	if effect_manager:
@@ -102,11 +108,14 @@ func _start_turn() -> void:
 			effect_manager.process_turn_start_effects(character)
 	
 	# Habilitar UI para turno del jugador
-	ui.set_player_turn_active(true)
+	if ui and ui.has_method("set_player_turn_active"):
+		ui.set_player_turn_active(true)
 	
 	# NO limpiar la mano aquí - el Player manager se encarga de las cartas
-	ui.update_player_chars(player_chars)
-	ui.update_enemy_chars(enemy_chars)
+	if ui and ui.has_method("update_player_chars"):
+		ui.update_player_chars(player_chars)
+	if ui and ui.has_method("update_enemy_chars"):
+		ui.update_enemy_chars(enemy_chars)
 	
 	# Iniciar turno del jugador (esto robará las cartas)
 	if player_manager:
@@ -122,365 +131,13 @@ func _draw_and_show() -> void:
 		print("DEBUG: Creando carta: ID=", cd.id, " Nombre=", cd.name)
 		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
 		card.set_data(cd)
-		ui.add_card_to_hand(card)
-		print("DEBUG: Carta añadida exitosamente")
+		if ui and ui.has_method("add_card_to_hand"):
+			ui.add_card_to_hand(card)
+			print("DEBUG: Carta añadida exitosamente")
+		else:
+			print("❌ UI no disponible o función add_card_to_hand no existe")
 	else:
 		print("DEBUG: ERROR - No hay cartas en el deck")
-
-# --- FUNCIÓN DE PRUEBAS ---
-func _create_test_card(create_damage_ally_card: bool = false, create_super_damage_card: bool = false, create_super_heal_card: bool = false) -> Node2D:
-	print("DEBUG: _create_test_card() llamado - Aliados: ", create_damage_ally_card, " Súper daño: ", create_super_damage_card, " Súper curación: ", create_super_heal_card)
-	
-	# Determinar qué tipo de carta crear basado en el contador de cartas en mano
-	var hand_count = ui.get_hand_size()
-	var card_type = hand_count % 8  # Ciclo de 8 tipos diferentes
-	
-	match card_type:
-		0:
-			return _create_status_debuff_attack_card()
-		1:
-			return _create_status_poison_card()
-		2:
-			return _create_status_stun_card()
-		3:
-			return _create_status_buff_defense_card()
-		4:
-			return _create_status_regeneration_card()
-		5:
-			return _create_status_double_damage_card()
-		6:
-			return _create_status_heal_block_card()
-		7:
-			return _create_status_vulnerability_card()
-	
-	# Fallback a cartas especiales originales
-	if create_super_heal_card:
-		return _create_super_heal_card()
-	elif create_super_damage_card:
-		return _create_super_damage_card()
-	elif create_damage_ally_card:
-		return _create_special_damage_ally_card()
-	
-	# Crear carta normal
-	var player_cards = _get_player_available_cards()
-	print("DEBUG: Cartas disponibles para test: ", player_cards.size())
-	
-	if player_cards.is_empty():
-		print("DEBUG: ERROR - No hay cartas disponibles para crear carta de prueba")
-		return null
-	
-	# Seleccionar ID aleatorio
-	var random_id = player_cards[randi() % player_cards.size()]
-	print("DEBUG: ID seleccionado para test: ", random_id, " (tipo: ", typeof(random_id), ")")
-	
-	# Convertir a int si es necesario
-	var card_id = int(random_id)
-	print("DEBUG: ID convertido a int: ", card_id)
-	print("DEBUG: Claves disponibles en all_card_definitions: ", deck.all_card_definitions.keys())
-	
-	# Crear CardData desde las definiciones cargadas
-	if deck.all_card_definitions.has(card_id):
-		var card_data = deck.all_card_definitions[card_id]
-		print("DEBUG: Datos de carta encontrados: ", card_data.name)
-		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-		card.set_data(card_data)
-		print("DEBUG: Carta de test creada exitosamente")
-		return card
-	
-	print("DEBUG: ERROR - No se pudo encontrar definición para carta ID: ", card_id)
-	print("DEBUG: Intentando buscar con ID original: ", random_id)
-	if deck.all_card_definitions.has(random_id):
-		var card_data = deck.all_card_definitions[random_id]
-		print("DEBUG: Encontrado con ID original!")
-		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-		card.set_data(card_data)
-		return card
-	
-	return null
-
-func _create_special_damage_ally_card() -> Node2D:
-	"""Crea una carta especial que puede dañar aliados"""
-	print("DEBUG: Creando carta especial de daño a aliados")
-	
-	# Crear CardData personalizada
-	var special_card_data = preload("res://scripts/CardData.gd").new()
-	special_card_data.id = 999  # ID especial
-	special_card_data.name = "Daño Aliado (TEST)"
-	special_card_data.cost = 1
-	special_card_data.description = "CARTA DE PRUEBA: Inflige 3 de daño a un aliado."
-	special_card_data.card_type = CardData.CardType.ATTACK
-	special_card_data.power = 3
-	
-	# Crear Array tipado correctamente para effects
-	var effects_array: Array[Dictionary] = []
-	effects_array.append({"type": "DAMAGE", "value": 5})  # Daño más alto para testing
-	special_card_data.effects = effects_array
-	
-	print("DEBUG: Carta especial - Effects creados: ", effects_array)
-	
-	# Crear la carta visual
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(special_card_data)
-	
-	print("DEBUG: Carta especial creada: ", special_card_data.name)
-	return card
-
-func _create_super_damage_card() -> Node2D:
-	"""Crea una carta súper poderosa para testing"""
-	print("DEBUG: Creando carta súper poderosa")
-	
-	# Crear CardData personalizada
-	var super_card_data = preload("res://scripts/CardData.gd").new()
-	super_card_data.id = 998  # ID especial
-	super_card_data.name = "MEGA DAÑO (TEST)"
-	super_card_data.cost = 2
-	super_card_data.description = "CARTA DE PRUEBA: Inflige 15 de daño puro (ignora defensa)."
-	super_card_data.card_type = CardData.CardType.ATTACK
-	super_card_data.power = 15
-	
-	# Crear Array tipado correctamente para effects
-	var effects_array: Array[Dictionary] = []
-	effects_array.append({"type": "DAMAGE", "value": 15})  # Daño masivo
-	super_card_data.effects = effects_array
-	
-	print("DEBUG: Carta súper - Effects creados: ", effects_array)
-	
-	# Crear la carta visual
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(super_card_data)
-	
-	print("DEBUG: Carta súper creada: ", super_card_data.name)
-	return card
-
-func _create_super_heal_card() -> Node2D:
-	"""Crea una carta súper curación para testing"""
-	print("DEBUG: Creando carta súper curación")
-	
-	# Crear CardData personalizada
-	var super_heal_data = preload("res://scripts/CardData.gd").new()
-	super_heal_data.id = 997  # ID especial
-	super_heal_data.name = "MEGA CURACIÓN (TEST)"
-	super_heal_data.cost = 2
-	super_heal_data.description = "CARTA DE PRUEBA: Cura 20 HP a un aliado."
-	super_heal_data.card_type = CardData.CardType.HEAL
-	super_heal_data.power = 20
-	
-	# Crear Array tipado correctamente para effects
-	var effects_array: Array[Dictionary] = []
-	effects_array.append({"type": "HEAL", "value": 20})  # Curación masiva
-	super_heal_data.effects = effects_array
-	
-	print("DEBUG: Carta súper curación - Effects creados: ", effects_array)
-	
-	# Crear la carta visual
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(super_heal_data)
-	
-	print("DEBUG: Carta súper curación creada: ", super_heal_data.name)
-	return card
-
-# --- CARTAS CON EFECTOS DE ESTADO ---
-func _create_status_debuff_attack_card() -> Node2D:
-	"""Crea una carta que reduce el ataque del enemigo"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2001
-	card_data.name = "Maldición Debilitante"
-	card_data.cost = 2
-	card_data.description = "Reduce el ataque del enemigo en 3 por 4 turnos"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.UNCOMMON
-	card_data.can_target_enemies = true
-	card_data.can_target_allies = false
-	
-	# Efectos de estado
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "DEBUFF_ATTACK",
-		"modifier_type": "FLAT",
-		"value": -3,
-		"duration": 4
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_poison_card() -> Node2D:
-	"""Crea una carta que envenena al enemigo"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2002
-	card_data.name = "Veneno Mortal"
-	card_data.cost = 3
-	card_data.description = "El enemigo recibe 2 de daño por veneno durante 5 turnos"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.RARE
-	card_data.can_target_enemies = true
-	card_data.can_target_allies = false
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "POISON",
-		"modifier_type": "FLAT",
-		"value": 2,
-		"duration": 5
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_stun_card() -> Node2D:
-	"""Crea una carta que aturde al enemigo"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2003
-	card_data.name = "Aturdimiento"
-	card_data.cost = 4
-	card_data.description = "El enemigo pierde su próximo turno"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.RARE
-	card_data.can_target_enemies = true
-	card_data.can_target_allies = false
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "STUN",
-		"modifier_type": "FLAT",
-		"value": 1,
-		"duration": 1
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_buff_defense_card() -> Node2D:
-	"""Crea una carta que aumenta la defensa de un aliado"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2004
-	card_data.name = "Bendición de Fortaleza"
-	card_data.cost = 2
-	card_data.description = "Aumenta la defensa de un aliado en 5 por 3 turnos"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.UNCOMMON
-	card_data.can_target_enemies = false
-	card_data.can_target_allies = true
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "BUFF_DEFENSE",
-		"modifier_type": "FLAT",
-		"value": 5,
-		"duration": 3
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_regeneration_card() -> Node2D:
-	"""Crea una carta que regenera HP a un aliado"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2005
-	card_data.name = "Regeneración Mística"
-	card_data.cost = 3
-	card_data.description = "Un aliado se cura 3 HP cada turno durante 4 turnos"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.RARE
-	card_data.can_target_enemies = false
-	card_data.can_target_allies = true
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "REGENERATION",
-		"modifier_type": "FLAT",
-		"value": 3,
-		"duration": 4
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_double_damage_card() -> Node2D:
-	"""Crea una carta que hace que el próximo ataque haga doble daño"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2006
-	card_data.name = "Golpe Crítico"
-	card_data.cost = 1
-	card_data.description = "Tu próximo ataque hace doble daño"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.UNCOMMON
-	card_data.can_target_enemies = false
-	card_data.can_target_allies = true
-	card_data.can_target_self = true
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "DOUBLE_DAMAGE",
-		"modifier_type": "FLAT",
-		"value": 1,
-		"duration": 1
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_heal_block_card() -> Node2D:
-	"""Crea una carta que impide que el enemigo se cure"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2007
-	card_data.name = "Herida Infectada"
-	card_data.cost = 3
-	card_data.description = "El enemigo no puede curarse por 3 turnos"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.RARE
-	card_data.can_target_enemies = true
-	card_data.can_target_allies = false
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "HEAL_BLOCK",
-		"modifier_type": "FLAT",
-		"value": 1,
-		"duration": 3
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
-
-func _create_status_vulnerability_card() -> Node2D:
-	"""Crea una carta que hace que el enemigo reciba más daño"""
-	var card_data = preload("res://scripts/CardData.gd").new()
-	card_data.id = 2008
-	card_data.name = "Marca de Vulnerabilidad"
-	card_data.cost = 2
-	card_data.description = "El enemigo recibe 50% más daño por 2 turnos"
-	card_data.card_type = CardData.CardType.STATUS
-	card_data.rarity = CardData.Rarity.UNCOMMON
-	card_data.can_target_enemies = true
-	card_data.can_target_allies = false
-	
-	var status_effects: Array[Dictionary] = []
-	status_effects.append({
-		"effect_type": "VULNERABILITY",
-		"modifier_type": "PERCENTAGE",
-		"value": 50,
-		"duration": 2
-	})
-	card_data.status_effects = status_effects
-	
-	var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-	card.set_data(card_data)
-	return card
 
 # --- SISTEMA DE ENERGÍA ---
 # --- FUNCIONES DE ENERGÍA (DELEGADAS AL PLAYER) ---
@@ -512,12 +169,6 @@ func get_current_energy() -> int:
 		return player_manager.get_energy()
 	return 0
 
-func get_max_energy() -> int:
-	"""Retorna la energía máxima"""
-	if player_manager:
-		return player_manager.get_max_energy()
-	return 3
-
 # --- SISTEMA DE TURNOS ENEMIGOS ---
 func end_player_turn() -> void:
 	"""Termina el turno del jugador e inicia el turno enemigo"""
@@ -545,7 +196,10 @@ func end_player_turn() -> void:
 # --- CALLBACKS DE MANAGERS ---
 func _on_player_energy_changed(current: int, maximum: int) -> void:
 	"""Callback cuando cambia la energía del jugador"""
-	ui.set_energy(current, maximum)
+	if ui and ui.has_method("set_energy"):
+		ui.set_energy(current, maximum)
+	else:
+		print("❌ UI no disponible o función set_energy no existe")
 
 func _on_player_hand_changed(cards: Array) -> void:
 	"""Callback cuando cambia la mano del jugador"""
@@ -570,31 +224,36 @@ func _on_player_hand_changed(cards: Array) -> void:
 	# Crear cartas visuales para TODOS los datos
 	for i in range(cards.size()):
 		var card_data = cards[i]
-		var card = preload("res://scenes/Card.tscn").instantiate() as Node2D
-		card.set_data(card_data)
-		ui.add_card_to_hand(card)
-		print("🃏 Carta visual creada: ", card_data.name, " (", i+1, "/", cards.size(), ")")
+		print("🃏 Procesando carta ", i+1, "/", cards.size(), ": ", card_data.name)
+		
+		# Crear nodo visual de carta
+		var card_node = preload("res://scenes/Card.tscn").instantiate() as Node2D
+		card_node.set_data(card_data)
+		
+		# Añadir a la mano visual
+		ui.add_card_to_hand(card_node)
+		print("✅ Carta visual creada y añadida: ", card_data.name)
 	
-	var final_visual_size = ui.get_current_hand_size()
-	print("✅ Sincronización completa - Datos: ", cards.size(), " | Visual: ", final_visual_size)
-	
-	if final_visual_size != cards.size():
-		print("⚠️ ADVERTENCIA: Aún hay desincronización después de recrear!")
+	print("✅ Sincronización completada - Cartas visuales: ", ui.get_current_hand_size())
 
-func _on_player_card_played(card_data) -> void:
+func _on_player_card_played(card_data: CardData) -> void:
 	"""Callback cuando el jugador juega una carta"""
-	print("🃏 Carta jugada por el jugador: ", card_data.name)
+	print("🃏 Jugador jugó carta: ", card_data.name)
 
 func _on_enemy_actions_generated(actions: Array) -> void:
-	"""Callback cuando se generan las acciones enemigas"""
-	ui.show_enemy_action_previews(actions)
+	"""Callback cuando el enemigo genera sus acciones"""
+	print("🤖 Enemigo generó ", actions.size(), " acciones")
+	if ui and ui.has_method("show_enemy_action_previews"):
+		ui.show_enemy_action_previews(actions)
+	else:
+		print("❌ UI no disponible o función show_enemy_action_previews no existe")
 
 func _on_enemy_action_executed(action: Dictionary) -> void:
-	"""Callback cuando se ejecuta una acción enemiga"""
-	ui.remove_enemy_action_preview(action)
+	"""Callback cuando el enemigo ejecuta una acción"""
+	print("⚔️ Enemigo ejecutó acción: ", action.get("type", "UNKNOWN"))
 
 func _on_enemy_turn_completed() -> void:
-	"""Callback cuando termina el turno enemigo"""
+	"""Callback cuando el enemigo completa su turno"""
 	print("✅ Turno enemigo completado")
 	
 	# Procesar efectos de final de turno para enemigos
@@ -602,97 +261,12 @@ func _on_enemy_turn_completed() -> void:
 		for character in enemy_chars:
 			effect_manager.process_turn_end_effects(character)
 	
-	# Actualizar UI después de procesar efectos
-	ui.update_player_chars(player_chars)
-	ui.update_enemy_chars(enemy_chars)
+	# Verificar condiciones de victoria/derrota
+	_check_game_over()
 	
-	print("🔄 Iniciando nuevo turno del jugador")
-	_start_turn()
-
-# --- GETTERS PARA MANAGERS ---
-func get_player_characters() -> Array:
-	"""Retorna los personajes del jugador"""
-	return player_chars
-
-func get_enemy_characters() -> Array:
-	"""Retorna los personajes enemigos"""
-	return enemy_chars
-
-func get_player_hand_size() -> int:
-	"""Retorna el tamaño de la mano del jugador según los datos"""
-	if player_manager and player_manager.has_method("get_hand_size"):
-		return player_manager.get_hand_size()
-	return -1
-
-func get_deck_cards() -> Array:
-	"""Retorna las cartas que están actualmente en el mazo"""
-	if not deck:
-		return []
-	
-	var deck_card_ids = deck.get_remaining_cards()
-	var deck_cards = []
-	
-	for card_id in deck_card_ids:
-		var card_data = deck.all_card_definitions.get(card_id)
-		if card_data:
-			deck_cards.append(card_data)
-	
-	print("📚 Obteniendo cartas del mazo: ", deck_cards.size(), " cartas")
-	return deck_cards
-
-func get_discard_cards() -> Array:
-	"""Retorna las cartas que están en el descarte"""
-	if not player_manager or not player_manager.has_method("get_discard_pile"):
-		return []
-	
-	var discard_pile = player_manager.get_discard_pile()
-	print("🗑️ Obteniendo cartas de descarte: ", discard_pile.size(), " cartas")
-	return discard_pile
-
-func discard_card_from_hand(card_data) -> void:
-	"""Descarta una carta específica de la mano del jugador"""
-	if player_manager and player_manager.has_method("add_to_discard_pile"):
-		print("🗑️ Game.gd: Añadiendo carta ", card_data.name, " al descarte a través de Player.gd")
-		player_manager.add_to_discard_pile(card_data)
-	else:
-		print("❌ No se pudo añadir carta al descarte - Player manager no disponible")
-
-func get_effect_manager() -> EffectManagerClass:
-	"""Retorna el EffectManager"""
-	return effect_manager
-
-func get_player_manager() -> Player:
-	"""Retorna el Player manager"""
-	return player_manager
-
-func _check_game_over() -> void:
-	"""Verifica si el juego ha terminado"""
-	var player_alive = false
-	var enemy_alive = false
-	
-	# Verificar si hay personajes del jugador vivos
-	for character in player_chars:
-		if character.hp > 0:
-			player_alive = true
-			break
-	
-	# Verificar si hay enemigos vivos
-	for character in enemy_chars:
-		if character.hp > 0:
-			enemy_alive = true
-			break
-	
-	# Game Over si todos los personajes del jugador están muertos
-	if not player_alive:
-		print("💀 GAME OVER - Todos los personajes del jugador han muerto")
-		_end_game("DERROTA")
-		return
-	
-	# Victoria si todos los enemigos están muertos
-	if not enemy_alive:
-		print("🎉 VICTORIA - Todos los enemigos han sido derrotados")
-		_end_game("VICTORIA")
-		return
+	# Si el juego no terminó, iniciar nuevo turno del jugador
+	if not _is_game_over():
+		_start_turn()
 
 # --- SISTEMA DE DECK DE 20 CARTAS ---
 func _create_20_card_deck() -> Array:
@@ -717,194 +291,216 @@ func _create_20_card_deck() -> Array:
 	# Mezclar el deck
 	deck_20_cards.shuffle()
 	
-	print("✅ Deck de 20 cartas creado:")
-	print("📋 Contenido: ", deck_20_cards)
-	
-	# Contar repeticiones para debug
-	var card_counts = {}
-	for card_id in deck_20_cards:
-		if card_counts.has(card_id):
-			card_counts[card_id] += 1
-		else:
-			card_counts[card_id] = 1
-	
-	print("📊 Distribución de cartas:")
-	for card_id in card_counts.keys():
-		var card_def = deck.all_card_definitions.get(card_id)
-		var card_name = card_def.name if card_def else "Desconocida"
-		print("  - ", card_name, " (ID:", card_id, "): ", card_counts[card_id], " copias")
+	print("✅ Deck de 20 cartas creado y mezclado")
+	print("📋 Composición del deck: ", deck_20_cards)
 	
 	return deck_20_cards
 
-# --- FUNCIONES OBSOLETAS REMOVIDAS ---
-# Las funciones de generación y ejecución de acciones enemigas
-# ahora están en Enemy.gd para mejor organización
-
-# Métodos auxiliares para personajes/enemigos
-func _load_char_defs(path: String) -> Dictionary:
-	var data_list = _load_json(path) # Esto devolverá un Array o []
-	var definitions := {}
-
-	if not data_list is Array:
-		push_error("Se esperaba un Array para las definiciones de personajes en %s, se obtuvo %s" % [path, typeof(data_list)])
-		return definitions
-
-	for char_data_item in data_list:
-		if not char_data_item is Dictionary:
-			push_warning("Elemento no es un diccionario en %s, omitiendo: %s" % [path, str(char_data_item)])
-			continue
-		if not char_data_item.has("id"):
-			push_warning("Elemento sin 'id' en %s, omitiendo: %s" % [path, str(char_data_item)])
-			continue
-			
-		var c = preload("res://scripts/CharacterData.gd").new()
-		c.id       = char_data_item.get("id", -1) # Usar .get para seguridad
-		c.name     = char_data_item.get("name", "N/A")
-		var portrait_path = char_data_item.get("portrait", "")
-		if not portrait_path.is_empty():
-			c.portrait = load(portrait_path)
-			if c.portrait == null:
-				push_warning("No se pudo cargar el retrato: %s para ID %s" % [portrait_path, c.id])
-		c.hp       = char_data_item.get("hp", 10)
-		c.max_hp   = char_data_item.get("max_hp", c.hp)
-		c.attack   = char_data_item.get("attack", 1)
-		c.defense  = char_data_item.get("defense", 0)
-		definitions[c.id] = c
-	return definitions
+func _get_player_available_cards() -> Array:
+	"""Obtiene las cartas disponibles para el jugador según el tipo de deck seleccionado"""
+	var deck_path: String
 	
-func _load_json(path: String) -> Variant:
-	var file = FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		push_error("No se pudo abrir el archivo: " + path)
-		return [] # Devolver un array vacío para consistencia en caso de error
-	var text = file.get_as_text()
+	match player_deck_type:
+		1:  # Balanceado
+			deck_path = "res://data/player_deck_balanced.json"
+		2:  # Agresivo
+			deck_path = "res://data/player_deck_aggressive.json"
+		3:  # Defensivo
+			deck_path = "res://data/player_deck_defensive.json"
+		4:  # Inicial
+			deck_path = "res://data/player_deck_starter.json"
+		_:  # Automático (0) o cualquier otro valor
+			deck_path = "res://data/player_deck.json"
+	
+	print("🎯 Cargando deck del jugador desde: ", deck_path)
+	
+	if not FileAccess.file_exists(deck_path):
+		print("❌ Archivo de deck no encontrado: ", deck_path)
+		print("🔄 Usando deck por defecto...")
+		deck_path = "res://data/player_deck.json"
+	
+	var file = FileAccess.open(deck_path, FileAccess.READ)
+	if not file:
+		print("❌ No se pudo abrir el archivo: ", deck_path)
+		return []
+	
+	var json_text = file.get_as_text()
 	file.close()
-
-	# Es buena práctica verificar si el texto está vacío antes de intentar parsear
-	if text.strip_edges().is_empty():
-		push_error("Error parseando JSON: El archivo está vacío o solo contiene espacios en blanco: %s" % path)
-		return []
-
-	var result = JSON.parse_string(text)
-
-	# Si JSON.parse_string devuelve null en caso de error de parseo:
-	if result == null:
-		push_error("Error al parsear JSON desde %s (posiblemente contenido inválido)." % path)
-		return [] 
-
-	if not (result is Array or result is Dictionary):
-		push_error("El contenido parseado de %s no es un Array o Dictionary, sino %s." % [path, typeof(result)])
-		return []
-		
-	return result
-
-
-func _load_enemy_decks(path: String) -> Array:
-	var decks_data = _load_json(path) # _load_json devuelve un Array (de tu JSON) o []
-
-	if not decks_data is Array:
-		push_error("Se esperaba un Array de mazos desde %s, pero se obtuvo %s." % [path, typeof(decks_data)])
-		return []
-
-	# Opcional: Validación adicional para cada elemento del mazo
-	var validated_decks: Array = []
-	for deck_item in decks_data:
-		if deck_item is Dictionary and deck_item.has("id") and deck_item.has("deck") and deck_item.deck is Array:
-			validated_decks.append(deck_item)
-		else:
-			push_warning("Elemento de mazo inválido encontrado en %s: %s. Omitiendo." % [path, str(deck_item)])
-	return validated_decks
-
-func _generate_roster(defs: Dictionary, min_count: int, max_count: int) -> Array:
-	if defs.is_empty():
-		push_warning("No se puede generar roster desde definiciones vacías.")
-		return []
-	var keys = defs.keys()
-	keys.shuffle()
-	 # Asegurar que max_count no exceda el número de definiciones disponibles
-	var actual_max_count = min(max_count, keys.size())
-	if min_count > actual_max_count && actual_max_count > 0 : # Si min_count es inalcanzable pero hay defs
-		min_count = actual_max_count
-	elif actual_max_count == 0: # No hay defs para elegir
-		return []
-
-	var count = randi_range(min_count, actual_max_count)
 	
-	var roster := []
-	for i in range(count):
-		roster.append(defs[keys[i]])
+	var json = JSON.new()
+	var parse_result = json.parse(json_text)
+	
+	if parse_result != OK:
+		print("❌ Error al parsear JSON: ", deck_path)
+		return []
+	
+	var data = json.data
+	if not data is Dictionary:
+		print("❌ El archivo JSON no contiene un Dictionary: ", deck_path)
+		return []
+	
+	var deck_data = data as Dictionary
+	var card_ids = []
+	
+	# Verificar diferentes estructuras posibles
+	if deck_data.has("cards"):
+		card_ids = deck_data["cards"]
+		print("DEBUG: Usando estructura 'cards'")
+	elif deck_data.has("deck"):
+		card_ids = deck_data["deck"]
+		print("DEBUG: Usando estructura 'deck'")
+	else:
+		print("❌ El archivo no tiene la estructura esperada (falta 'cards' o 'deck')")
+		print("DEBUG: Claves disponibles: ", deck_data.keys())
+		return []
+	print("✅ Cartas cargadas del deck: ", card_ids.size())
+	
+	return card_ids
+
+# --- CARGA DE DATOS ---
+func _load_char_defs(path: String) -> Dictionary:
+	"""Carga definiciones de personajes desde un archivo JSON"""
+	if not FileAccess.file_exists(path):
+		print("❌ Archivo no encontrado: ", path)
+		return {}
+	
+	var file = FileAccess.open(path, FileAccess.READ)
+	if not file:
+		print("❌ No se pudo abrir archivo: ", path)
+		return {}
+	
+	var json_text = file.get_as_text()
+	file.close()
+	
+	var json = JSON.new()
+	var parse_result = json.parse(json_text)
+	
+	if parse_result != OK:
+		print("❌ Error al parsear JSON: ", path)
+		return {}
+	
+	var data = json.data
+	if data is Dictionary:
+		return data
+	elif data is Array:
+		# Convertir Array a Dictionary usando el ID como clave
+		print("DEBUG: Convirtiendo Array a Dictionary para: ", path)
+		var dict_data = {}
+		for item in data:
+			if item is Dictionary and item.has("id"):
+				dict_data[item["id"]] = item
+				print("DEBUG: Añadido personaje ID ", item["id"], ": ", item.get("name", "Sin nombre"))
+		print("DEBUG: Dictionary creado con ", dict_data.size(), " personajes")
+		return dict_data
+	else:
+		print("❌ El archivo JSON no contiene un Dictionary ni Array: ", path)
+		return {}
+
+func _generate_roster(defs: Dictionary, min_chars: int, max_chars: int) -> Array:
+	"""Genera un roster de personajes aleatorios"""
+	var roster = []
+	var char_keys = defs.keys()
+	
+	if char_keys.is_empty():
+		print("❌ No hay definiciones de personajes disponibles")
+		return roster
+	
+	var num_chars = randi_range(min_chars, max_chars)
+	
+	for i in range(num_chars):
+		var random_key = char_keys[randi() % char_keys.size()]
+		var char_def = defs[random_key]
+		
+		# Crear CharacterData
+		var char_data = preload("res://scripts/CharacterData.gd").new()
+		char_data.id = random_key
+		char_data.name = char_def.get("name", "Personaje " + str(i+1))
+		char_data.description = char_def.get("description", "")
+		char_data.max_hp = char_def.get("hp", 100)
+		char_data.hp = char_data.max_hp
+		char_data.attack = char_def.get("attack", 10)
+		char_data.defense = char_def.get("defense", 5)
+		char_data.rate = char_def.get("rate", 1)
+		char_data.role = char_def.get("role", "")
+		var portrait_path = char_def.get("portrait", "")
+		char_data.sprite_path = portrait_path
+		
+		# Cargar la textura desde la ruta
+		print("DEBUG: Intentando cargar textura para ", char_data.name)
+		print("DEBUG: Ruta: ", portrait_path)
+		print("DEBUG: ResourceLoader.exists(): ", ResourceLoader.exists(portrait_path))
+		
+		if portrait_path != "":
+			if ResourceLoader.exists(portrait_path):
+				var loaded_texture = load(portrait_path) as Texture2D
+				char_data.portrait = loaded_texture
+				print("DEBUG: ✅ Textura cargada exitosamente: ", loaded_texture)
+			else:
+				print("❌ ResourceLoader.exists() = false para: ", portrait_path)
+				# Intentar cargar de todas formas
+				var loaded_texture = load(portrait_path) as Texture2D
+				if loaded_texture:
+					char_data.portrait = loaded_texture
+					print("DEBUG: ✅ Textura cargada a pesar de ResourceLoader.exists() = false")
+				else:
+					char_data.portrait = null
+					print("❌ No se pudo cargar textura: ", portrait_path)
+		else:
+			char_data.portrait = null
+			print("DEBUG: No hay ruta de portrait especificada")
+		
+		roster.append(char_data)
+	
 	return roster
 
-func _find_deck_by_id(deck_list: Array, id_to_find: int) -> Dictionary:
-	for deck_data in deck_list:
-		if deck_data is Dictionary and deck_data.has("id") and deck_data.id == id_to_find:
-			return deck_data
-
-	return {} # Devuelve diccionario vacío si no se encuentra
-
-func _get_player_deck() -> Array:
-	match player_deck_type:
-		1: # Balanceado
-			return _load_deck_from_file("res://data/player_deck_balanced.json")
-		2: # Agresivo  
-			return _load_deck_from_file("res://data/player_deck_aggressive.json")
-		3: # Defensivo
-			return _load_deck_from_file("res://data/player_deck_defensive.json")
-		4: # Inicial
-			return _load_deck_from_file("res://data/player_deck_starter.json")
-		_: # Automático (0)
-			return _get_player_available_cards()
-
-func _load_deck_from_file(file_path: String) -> Array:
-	var deck_data = _load_json(file_path)
-	if deck_data is Dictionary and deck_data.has("deck"):
-		return deck_data.get("deck", [])
-	else:
-		push_warning("Game.gd: Error cargando deck desde %s" % file_path)
-		return []
-
-func _get_player_available_cards() -> Array:
-	var all_cards_data = _load_json("res://data/cards.json")
-	var player_cards: Array = []
+# --- GAME OVER ---
+func _check_game_over() -> void:
+	"""Verifica las condiciones de victoria/derrota"""
+	var player_alive = false
+	var enemy_alive = false
 	
-	if not all_cards_data is Array:
-		push_error("Game.gd: Error al cargar cartas desde cards.json")
-		return player_cards
+	# Verificar si hay jugadores vivos
+	for character in player_chars:
+		if character.hp > 0:
+			player_alive = true
+			break
 	
-	# Filtrar cartas disponibles para el jugador
-	for card_data in all_cards_data:
-		if card_data is Dictionary and card_data.has("available_to") and card_data.has("id"):
-			var available_to = card_data.get("available_to", [])
-			if available_to is Array and "player" in available_to:
-				var card_id = int(card_data.get("id"))  # Asegurar que sea entero
-				player_cards.append(card_id)
+	# Verificar si hay enemigos vivos
+	for character in enemy_chars:
+		if character.hp > 0:
+			enemy_alive = true
+			break
 	
-	# Crear una lista con múltiples copias para tener suficientes cartas
-	var expanded_deck: Array = []
-	for card_id in player_cards:
-		# Añadir 3 copias de cada carta disponible para el jugador
-		for i in range(3):
-			expanded_deck.append(card_id)
-	
-	expanded_deck.shuffle()
-	return expanded_deck
+	# Determinar resultado
+	if not player_alive and not enemy_alive:
+		_end_game("EMPATE")
+	elif not player_alive:
+		_end_game("DERROTA")
+	elif not enemy_alive:
+		_end_game("VICTORIA")
 
-func _on_character_selected(char_data: CharacterData):
-	print("🎭 Personaje seleccionado: ", char_data.name)
+func _is_game_over() -> bool:
+	"""Verifica si el juego ha terminado"""
+	var player_alive = false
+	var enemy_alive = false
 	
-	# Delegar al UI para manejar el targeting
-	if ui.has_method("_on_character_targeted"):
-		ui._on_character_targeted(char_data)
+	for character in player_chars:
+		if character.hp > 0:
+			player_alive = true
+			break
+	
+	for character in enemy_chars:
+		if character.hp > 0:
+			enemy_alive = true
+			break
+	
+	return not player_alive or not enemy_alive
 
 func _end_game(result: String) -> void:
 	"""Termina el juego con el resultado especificado"""
 	print("🎮 Juego terminado: ", result)
 	
-	# Detener cronómetros
-	if ui and ui.has_method("stop_match_timer"):
-		ui.stop_match_timer()
-	
-	# Mostrar pantalla de game over
+	# Mostrar pantalla de game over (esto ya detiene los cronómetros internamente)
 	if ui and ui.has_method("show_game_over"):
 		var victory = (result == "VICTORIA")
 		ui.show_game_over(victory)
@@ -913,3 +509,43 @@ func _end_game(result: String) -> void:
 	# - Guardar estadísticas
 	# - Reiniciar el juego
 	# - etc.
+
+# --- TARGETING SYSTEM ---
+func _on_character_targeted(char_data: CharacterData) -> void:
+	"""Maneja cuando se selecciona un personaje como objetivo"""
+	print("🎯 Personaje seleccionado como objetivo: ", char_data.name)
+	
+	# Delegar al UI para manejar el targeting
+	if ui.has_method("_on_character_targeted"):
+		ui._on_character_targeted(char_data)
+
+# --- GETTERS PARA UI ---
+func get_player_characters() -> Array:
+	"""Retorna los personajes del jugador"""
+	return player_chars
+
+func get_enemy_characters() -> Array:
+	"""Retorna los personajes enemigos"""
+	return enemy_chars
+
+func get_deck_cards() -> Array:
+	"""Retorna las cartas del mazo"""
+	if deck and deck.has_method("get_remaining_cards"):
+		var cards = deck.get_remaining_cards()
+		print("DEBUG: get_deck_cards() - Cartas obtenidas: ", cards.size())
+		if cards.size() > 0:
+			print("DEBUG: Primer carta tipo: ", typeof(cards[0]), " - Es CardData: ", cards[0] is CardData)
+			if cards[0] is CardData:
+				print("DEBUG: Nombre de primera carta: ", cards[0].name)
+		return cards
+	return []
+
+func get_discard_cards() -> Array:
+	"""Retorna las cartas de descarte"""
+	if player_manager and player_manager.has_method("get_discard_pile"):
+		return player_manager.get_discard_pile()
+	return []
+
+func get_player_manager():
+	"""Retorna el player manager"""
+	return player_manager

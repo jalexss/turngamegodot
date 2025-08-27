@@ -11,7 +11,9 @@ func _ready() -> void:
 
 # Carga y cachea todas las definiciones de cartas desde CARDS_DEFINITIONS_PATH
 func _preload_all_card_definitions() -> void:
+	print("DEBUG: _preload_all_card_definitions iniciado")
 	if not all_card_definitions.is_empty():
+		print("DEBUG: Definiciones ya cargadas: ", all_card_definitions.size())
 		return # Ya cargadas
 
 	var file = FileAccess.open(CARDS_DEFINITIONS_PATH, FileAccess.READ)
@@ -95,6 +97,9 @@ func _preload_all_card_definitions() -> void:
 			push_warning("Deck.gd: ID de carta duplicado %s en definiciones. La definición anterior será sobrescrita." % cd.id)
 		all_card_definitions[cd.id] = cd
 	
+	print("DEBUG: Procesamiento completado. Cartas cargadas: ", all_card_definitions.size())
+	print("DEBUG: IDs de cartas disponibles: ", all_card_definitions.keys())
+	
 	if all_card_definitions.is_empty() and not parse_result.is_empty():
 		push_warning("Deck.gd: Se procesaron definiciones de cartas pero el diccionario 'all_card_definitions' está vacío. Verifica los IDs y la estructura del JSON.")
 
@@ -102,6 +107,10 @@ func _preload_all_card_definitions() -> void:
 # Público: Carga el mazo a partir de un array de IDs de cartas.
 func load_deck_from_ids(card_ids_raw: Array) -> void:
 # func load_deck_from_ids(card_ids: Array) -> void:
+	print("DEBUG: load_deck_from_ids llamado con ", card_ids_raw.size(), " IDs")
+	print("DEBUG: IDs recibidos: ", card_ids_raw)
+	print("DEBUG: all_card_definitions tiene ", all_card_definitions.size(), " cartas")
+	
 	if all_card_definitions.is_empty():
 		push_error("Deck.gd: Las definiciones de cartas no están cargadas o están vacías. No se puede crear el mazo desde IDs.")
 		cards.clear()
@@ -208,5 +217,12 @@ func get_remaining_cards() -> Array:
 	"""Retorna una copia de las cartas que quedan en el mazo"""
 	var remaining_cards = []
 	for card_data in cards:
-		remaining_cards.append(card_data.id)
+		remaining_cards.append(card_data)  # Devolver el CardData completo, no solo el ID
 	return remaining_cards
+
+func get_remaining_card_ids() -> Array:
+	"""Retorna solo los IDs de las cartas que quedan en el mazo"""
+	var remaining_ids = []
+	for card_data in cards:
+		remaining_ids.append(card_data.id)
+	return remaining_ids

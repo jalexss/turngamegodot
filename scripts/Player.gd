@@ -48,8 +48,8 @@ func start_turn() -> void:
 		if ui_node and ui_node.has_method("show_overflow_blocking_message"):
 			ui_node.show_overflow_blocking_message()
 	else:
-		print("✅ No hay cartas pendientes - Robando 3 cartas nuevas")
-		_draw_cards(3)
+		print("✅ No hay cartas pendientes - Robando 2 cartas nuevas")
+		_draw_cards(2)
 
 func can_afford_card(cost: int) -> bool:
 	"""Verifica si el jugador puede pagar una carta"""

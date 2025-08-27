@@ -17,13 +17,20 @@ var action_previews: Array = []  # Acciones enemigas pendientes
 var active_effects: Array = []   # Efectos de estado activos
 
 func _ready():
+	print("DEBUG: CharacterSlot._ready() - Verificando nodos...")
+	print("DEBUG: name_label: ", name_label)
+	print("DEBUG: health_bar: ", health_bar)
+	print("DEBUG: portrait: ", portrait)
+	print("DEBUG: hover_effect: ", hover_effect)
+	
 	# Conectar las señales del ratón a nuestras funciones
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 	gui_input.connect(_on_gui_input)  # ¡Esta línea faltaba!
 	
 	# Ocultar el efecto de hover al inicio
-	hover_effect.visible = false
+	if hover_effect:
+		hover_effect.visible = false
 
 # Función pública para que GameUI nos envíe los datos del personaje
 func set_character_data(data: CharacterData):
@@ -36,10 +43,16 @@ func set_character_data(data: CharacterData):
 	health_bar.value = character_data.hp
 	
 	# ¡Aquí está la clave para que el sprite aparezca!
+	print("DEBUG: CharacterSlot - Configurando portrait para ", character_data.name)
+	print("DEBUG: portrait texture: ", character_data.portrait)
+	print("DEBUG: sprite_path: ", character_data.sprite_path)
+	
 	if character_data.portrait:
 		portrait.texture = character_data.portrait
+		print("DEBUG: Portrait asignado exitosamente")
 	else:
 		portrait.texture = null # Limpiar si no hay retrato
+		print("DEBUG: No hay portrait - texture = null")
 	
 	# Actualizar display de acciones (incluye el nombre)
 	_update_action_display()

@@ -84,8 +84,21 @@ func _ready() -> void:
 	_create_missing_nodes()
 	
 	# Inicializar slots de personajes
-	_initialize_character_slots(player_slots_container, player_slots_nodes, 3)
-	_initialize_character_slots(enemy_slots_container, enemy_slots_nodes, 5)
+	print("DEBUG: Inicializando slots de personajes...")
+	print("DEBUG: player_slots_container: ", player_slots_container)
+	print("DEBUG: enemy_slots_container: ", enemy_slots_container)
+	
+	if player_slots_container:
+		_initialize_character_slots(player_slots_container, player_slots_nodes, 3)
+		print("DEBUG: Slots de jugador inicializados: ", player_slots_nodes.size())
+	else:
+		print("❌ ERROR: player_slots_container no encontrado")
+	
+	if enemy_slots_container:
+		_initialize_character_slots(enemy_slots_container, enemy_slots_nodes, 5)
+		print("DEBUG: Slots de enemigo inicializados: ", enemy_slots_nodes.size())
+	else:
+		print("❌ ERROR: enemy_slots_container no encontrado")
 	
 	# Configurar botón de pruebas
 	if test_button:
@@ -167,6 +180,9 @@ func _update_pressure_timer_display() -> void:
 				pressure_timer_label.modulate = Color(1.0, 0.8, 0.8, 1.0)
 
 func _create_missing_nodes() -> void:
+	print("DEBUG: _create_missing_nodes iniciado")
+	print("DEBUG: hand_container actual: ", hand_container)
+	
 	# Crear HandContainer si no existe
 	if not hand_container:
 		print("DEBUG: Creando HandContainer automáticamente...")
@@ -176,6 +192,28 @@ func _create_missing_nodes() -> void:
 		add_child(new_hand_container)
 		hand_container = new_hand_container
 		print("DEBUG: HandContainer creado en posición global: ", hand_container.global_position)
+		print("DEBUG: HandContainer tipo: ", typeof(hand_container))
+	else:
+		print("DEBUG: HandContainer ya existe: ", hand_container)
+	
+	# Crear contenedores de personajes si no existen
+	if not player_slots_container:
+		print("DEBUG: Creando PlayerChars container automáticamente...")
+		var new_player_container = HBoxContainer.new()
+		new_player_container.name = "PlayerChars"
+		new_player_container.position = Vector2(100, 400)
+		add_child(new_player_container)
+		player_slots_container = new_player_container
+		print("DEBUG: PlayerChars container creado")
+	
+	if not enemy_slots_container:
+		print("DEBUG: Creando EnemyChars container automáticamente...")
+		var new_enemy_container = HBoxContainer.new()
+		new_enemy_container.name = "EnemyChars"
+		new_enemy_container.position = Vector2(100, 200)
+		add_child(new_enemy_container)
+		enemy_slots_container = new_enemy_container
+		print("DEBUG: EnemyChars container creado")
 	
 	# Crear TestButton si no existe
 	if not test_button:
@@ -710,19 +748,13 @@ func _on_test_button_pressed() -> void:
 		print("DEBUG: Mano llena, no se puede añadir más cartas")
 		return
 	
-	# Crear carta de test especial (ahora siempre crea cartas con efectos especiales)
+	# Crear carta aleatoria del deck
 	var game_node = get_parent()
-	if game_node and game_node.has_method("_create_test_card"):
-		print("DEBUG: Creando carta de test con efectos especiales...")
-		# Siempre crear cartas con efectos especiales
-		var test_card = game_node._create_test_card(false, false, false)
-		if test_card:
-			print("DEBUG: Carta de test creada exitosamente: ", test_card.data.name)
-			add_card_to_hand(test_card)
-		else:
-			print("DEBUG: ERROR - No se pudo crear carta de test")
+	if game_node and game_node.has_method("_draw_and_show"):
+		print("DEBUG: Robando carta del deck...")
+		game_node._draw_and_show()
 	else:
-		print("DEBUG: ERROR - No se encontró el método _create_test_card en el nodo padre")
+		print("DEBUG: ERROR - No se pudo robar carta del deck")
 
 # --- FUNCIÓN DE ENERGÍA DE PRUEBA ---
 func _on_energy_button_pressed() -> void:
@@ -930,7 +962,13 @@ func _trigger_pressure_attack() -> void:
 	# Ejecutar ataque a todos los personajes del jugador
 	await _execute_pressure_attack()
 	
-	# Reiniciar cronómetro de presión
+	# Si el juego terminó durante el ataque, no continuar
+	if game_over_active:
+		print("⚡ Ataque de presión terminó el juego - no reiniciar cronómetro")
+		pressure_attack_active = false
+		return
+	
+	# Reiniciar cronómetro de presión solo si el juego continúa
 	_reset_pressure_timer()
 	
 	# Desbloquear acciones del jugador
@@ -987,6 +1025,12 @@ func _execute_pressure_attack() -> void:
 	for character in player_chars:
 		if character.hp > 0:
 			_apply_pressure_damage_to_character(character)
+			
+			# Si el juego terminó durante el ataque, salir del bucle
+			if game_over_active:
+				print("🎮 Ataque de presión interrumpido por game over")
+				break
+				
 			await get_tree().create_timer(0.5).timeout  # Pausa entre ataques para efecto dramático
 
 func _apply_pressure_damage_to_character(character: CharacterData) -> void:
@@ -1016,10 +1060,15 @@ func _apply_pressure_damage_to_character(character: CharacterData) -> void:
 	if character.hp == 0:
 		add_combat_log_entry("☠️ " + character.name + " ha caído por el ataque de presión!")
 	
-	# Verificar game over
+	# Verificar game over después de cada personaje
 	var game_node = get_parent()
 	if game_node and game_node.has_method("_check_game_over"):
 		game_node._check_game_over()
+		
+		# Si el juego terminó, detener el ataque de presión inmediatamente
+		if game_over_active:
+			print("🎮 Game over detectado durante ataque de presión - deteniendo ataque")
+			return
 
 func _reset_pressure_timer() -> void:
 	"""Reinicia el cronómetro de presión"""
@@ -1070,8 +1119,9 @@ func show_game_over(victory: bool) -> void:
 	
 	game_over_active = true
 	
-	# Pausar cronómetros
-	pause_timers(true)
+	# Detener ambos cronómetros inmediatamente
+	pressure_attack_active = true  # Esto pausará ambos cronómetros
+	stop_match_timer()  # Detener cronómetro de partida y registrar tiempo final
 	
 	# Configurar mensaje según resultado
 	if victory:
@@ -1988,15 +2038,21 @@ func _discard_card(card: Node2D) -> void:
 	# Remover de la mano de datos en Player.gd PRIMERO
 	if card.data:
 		var game_node = get_parent()
+		print("🔍 DEBUG: game_node = ", game_node)
+		
 		if game_node and game_node.has_method("get_player_manager"):
 			var player_manager = game_node.get_player_manager()
+			print("🔍 DEBUG: player_manager = ", player_manager)
+			
 			if player_manager and player_manager.has_method("discard_card"):
-				print("🔍 DEBUG: Descartando carta en Player.gd")
+				print("🔍 DEBUG: Llamando player_manager.discard_card() con: ", card.data.name)
 				player_manager.discard_card(card.data)
+				print("✅ DEBUG: Descarte completado en Player.gd")
 			else:
-				print("⚠️ No se pudo descartar en Player.gd - usando método alternativo")
-				if game_node.has_method("discard_card_from_hand"):
-					game_node.discard_card_from_hand(card.data)
+				print("❌ player_manager no tiene método discard_card")
+				print("🔍 Métodos disponibles: ", player_manager.get_method_list() if player_manager else "player_manager es null")
+		else:
+			print("❌ game_node no tiene método get_player_manager")
 		
 		# Añadir al descarte local (para compatibilidad)
 		discard_pile.append(card.data)
@@ -2008,21 +2064,29 @@ func _discard_card(card: Node2D) -> void:
 
 func _update_discard_button_display() -> void:
 	"""Actualiza el display del botón de descarte"""
+	print("🔍 DEBUG: _update_discard_button_display() llamado")
+	print("🔍 DEBUG: discard_button = ", discard_button)
+	
 	if discard_button:
 		# Obtener el tamaño real del descarte desde Player.gd
 		var game_node = get_parent()
 		var real_discard_size = 0
 		
+		print("🔍 DEBUG: Obteniendo tamaño real del descarte...")
 		if game_node and game_node.has_method("get_discard_cards"):
 			var discard_cards = game_node.get_discard_cards()
 			real_discard_size = discard_cards.size()
-			print("🔍 DEBUG: Actualizando botón descarte - Cartas reales: ", real_discard_size)
+			print("🔍 DEBUG: Cartas reales en descarte: ", real_discard_size)
 		else:
 			# Fallback al sistema local si no hay acceso al Player
 			real_discard_size = discard_pile.size()
 			print("🔍 DEBUG: Usando descarte local: ", real_discard_size)
 		
+		print("🔍 DEBUG: Actualizando botón de ", discard_button.text, " a ", str(real_discard_size))
 		discard_button.text = str(real_discard_size)
+		print("✅ DEBUG: Botón actualizado a: ", discard_button.text)
+	else:
+		print("❌ DEBUG: discard_button es null")
 
 func get_discard_pile_size() -> int:
 	"""Retorna el tamaño de la pila de descarte"""
@@ -2035,20 +2099,29 @@ func clear_discard_pile() -> void:
 
 # --- OTRAS FUNCIONES DE UI ---
 func _initialize_character_slots(container: HBoxContainer, slots_array: Array, count: int):
-	for child in container.get_children(): child.queue_free()
+	print("DEBUG: _initialize_character_slots - container: ", container, " count: ", count)
+	
+	for child in container.get_children(): 
+		print("DEBUG: Eliminando hijo existente: ", child)
+		child.queue_free()
 	slots_array.clear()
+	
 	for i in range(count):
+		print("DEBUG: Creando slot ", i)
 		var slot_instance = CharacterSlotScene.instantiate()
+		print("DEBUG: Slot creado: ", slot_instance)
 
 		# Conectar la señal del slot a una función del nodo Game
 		# Asumimos que GameUI es hijo de Game
 		var game_node = get_parent()
 		if game_node and game_node.has_method("_on_character_selected"):
 			slot_instance.character_clicked.connect(game_node._on_character_selected)
+			print("DEBUG: Señal conectada para slot ", i)
 
 		container.add_child(slot_instance)
 		slots_array.append(slot_instance)
 		slot_instance.visible = false
+		print("DEBUG: Slot ", i, " añadido al contenedor y array")
 
 # --- FUNCIONES DE UI DISPLAY ---
 func set_turn(turn_num: int):
@@ -2070,22 +2143,32 @@ func set_energy(current_energy: int, max_energy: int = 3):
 		print("⚠️ Ruta intentada: MainVBox/HBoxContainer/EnergyPanel/EnergyLabel")
 
 func update_player_chars(chars_data: Array):
+	print("DEBUG: update_player_chars llamado con ", chars_data.size(), " personajes")
+	print("DEBUG: player_slots_nodes disponibles: ", player_slots_nodes.size())
 	_update_character_slots(player_slots_nodes, chars_data)
 	_update_all_status_effects(player_slots_nodes)
 
 func update_enemy_chars(chars_data: Array):
+	print("DEBUG: update_enemy_chars llamado con ", chars_data.size(), " personajes")
+	print("DEBUG: enemy_slots_nodes disponibles: ", enemy_slots_nodes.size())
 	_update_character_slots(enemy_slots_nodes, chars_data)
 	_update_all_status_effects(enemy_slots_nodes)
 
 func _update_character_slots(slots: Array, data: Array):
+	print("DEBUG: _update_character_slots - slots: ", slots.size(), " data: ", data.size())
 	for i in range(slots.size()):
 		var slot_node = slots[i]
 		if i < data.size():
 			var d = data[i]
+			print("DEBUG: Configurando slot ", i, " con personaje: ", d.name, " HP: ", d.hp)
 			slot_node.visible = true
 			if slot_node.has_method("set_character_data"):
 				slot_node.set_character_data(d)
+				print("DEBUG: Slot ", i, " configurado exitosamente")
+			else:
+				print("❌ ERROR: Slot ", i, " no tiene método set_character_data")
 		else:
+			print("DEBUG: Ocultando slot ", i, " (sin datos)")
 			slot_node.visible = false
 
 func _update_all_status_effects(slots: Array) -> void:
