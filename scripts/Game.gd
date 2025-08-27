@@ -1,4 +1,4 @@
-extends Node2D
+extends Control
 
 const ENEMY_DECKS_PATH = "res://data/enemy_decks.json"
 const PLAYER_DECK_PATH = "res://data/player_deck.json"

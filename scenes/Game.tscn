@@ -7,7 +7,13 @@
 [ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="6_400sg"]
 [ext_resource type="PackedScene" uid="uid://bxdtb1ge7pk18" path="res://scenes/GameUI.tscn" id="7_kiw3p"]
 
-[node name="Game" type="Node2D"]
+[node name="Game" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_78awf")
 
 [node name="Hand" parent="." instance=ExtResource("1_cpr0p")]
@@ -19,3 +25,4 @@ script = ExtResource("5_kiw3p")
 script = ExtResource("6_400sg")
 
 [node name="GameUI" parent="." instance=ExtResource("7_kiw3p")]
+layout_mode = 1

@@ -3,6 +3,7 @@ extends Control
 # No necesitamos importar HandContainer ya que es una clase global
 # Importar clases necesarias
 const EffectManagerClass = preload("res://scripts/EffectManager.gd")
+const TopBarScene = preload("res://scenes/TopBar.tscn")
 
 # --- NODOS DE LA ESCENA ---
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
@@ -18,10 +19,8 @@ const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 @onready var deck_button = get_node_or_null("DeckButton") as Button
 @onready var overflow_button = get_node_or_null("OverflowButton") as Button
 
-# --- NODOS DEL TOPBAR Y LOG DE COMBATE ---
-var topbar_container: Panel = null
-var combat_log_button: Button = null
-var menu_button: Button = null
+# --- TOPBAR Y LOG DE COMBATE ---
+var topbar: Control = null
 var combat_log_panel: Panel = null
 var combat_log_scroll: ScrollContainer = null
 var combat_log_content: VBoxContainer = null
@@ -60,22 +59,16 @@ var drag_start_position: Vector2 = Vector2.ZERO
 var combat_log_entries: Array[String] = []
 const MAX_LOG_ENTRIES: int = 100  # Máximo de entradas en el log
 
-# Sistema de cronómetros
-var match_timer: float = 0.0  # Tiempo total de partida en segundos
-var pressure_timer: float = 15.0  # Cronómetro de presión (configurable)
-var pressure_timer_max: float = 15.0  # Valor máximo del cronómetro de presión
+# Sistema de cronómetros (ahora manejado por TopBar)
 var pressure_attack_active: bool = false  # Si está ejecutándose el ataque de presión
 var is_player_turn: bool = true  # Si es el turno del jugador (para pausar cronómetro de presión)
-var match_timer_label: Label = null
-var pressure_timer_label: Label = null
-var pressure_timer_bar: ProgressBar = null
 
 const CharacterSlotScene = preload("res://scenes/ui_elements/CharacterSlot.tscn")
 
 # --- FUNCIONES DEL MOTOR ---
 func _ready() -> void:
-	# Crear topbar y sistema de log primero
-	_create_topbar_system()
+	# Crear topbar usando la nueva escena
+	_setup_topbar()
 	
 	# Crear pantalla de game over
 	_create_game_over_overlay()
@@ -119,65 +112,46 @@ func _process(delta: float) -> void:
 	"""Actualiza los cronómetros cada frame"""
 	_update_timers(delta)
 
-func _update_timers(delta: float) -> void:
-	"""Actualiza ambos cronómetros"""
-	# No actualizar si el juego ha terminado o hay ataque de presión activo
-	if game_over_active or pressure_attack_active:
-		return
-	
-	# Actualizar cronómetro de partida (siempre cuenta hacia arriba)
-	match_timer += delta
-	_update_match_timer_display()
-	
-	# Actualizar cronómetro de presión SOLO durante el turno del jugador
-	if is_player_turn:
-		pressure_timer -= delta
-		_update_pressure_timer_display()
-		
-		# Verificar si el cronómetro de presión llegó a 0
-		if pressure_timer <= 0.0:
-			_trigger_pressure_attack()
-	else:
-		# Durante turno enemigo, solo actualizar el display sin cambiar el valor
-		_update_pressure_timer_display()
+func _update_timers(_delta: float) -> void:
+	"""Los cronómetros ahora son manejados por TopBar"""
+	# No hacer nada aquí, TopBar maneja sus propios cronómetros
+	pass
 
-func _update_match_timer_display() -> void:
-	"""Actualiza el display del cronómetro de partida"""
-	if match_timer_label:
-		var minutes = int(match_timer / 60)
-		var seconds = int(match_timer) % 60
-		match_timer_label.text = "⏱️ Partida: %02d:%02d" % [minutes, seconds]
+# --- SETUP DEL NUEVO TOPBAR ---
+func _setup_topbar() -> void:
+	"""Configura el nuevo TopBar usando la escena separada"""
+	print("🔧 Configurando TopBar...")
+	
+	# Instanciar la escena TopBar
+	topbar = TopBarScene.instantiate()
+	topbar.name = "TopBar"
+	
+	# Configurar posición y tamaño
+	topbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	topbar.size.y = 60
+	topbar.z_index = 50
+	
+	# Agregar al GameUI
+	add_child(topbar)
+	
+	# Conectar señales del TopBar
+	if topbar.has_signal("combat_log_requested"):
+		topbar.combat_log_requested.connect(_on_combat_log_button_pressed)
+	
+	if topbar.has_signal("menu_requested"):
+		topbar.menu_requested.connect(_on_menu_button_pressed)
+	
+	if topbar.has_signal("pressure_attack_triggered"):
+		topbar.pressure_attack_triggered.connect(_trigger_pressure_attack)
+	
+	# Crear el panel de log de combate
+	_create_combat_log_panel()
+	
+	print("✅ TopBar configurado correctamente")
 
-func _update_pressure_timer_display() -> void:
-	"""Actualiza el display del cronómetro de presión"""
-	if pressure_timer_label and pressure_timer_bar:
-		var seconds_left = max(0, int(pressure_timer))
-		
-		# Mostrar estado del cronómetro
-		if is_player_turn:
-			pressure_timer_label.text = "⚡ Presión: %ds" % seconds_left
-		else:
-			pressure_timer_label.text = "⚡ Presión: %ds ⏸️" % seconds_left  # Indicador de pausa
-		
-		# Actualizar barra de progreso
-		pressure_timer_bar.value = max(0, pressure_timer)
-		
-		# Cambiar color según el tiempo restante y estado del turno
-		var progress_style = pressure_timer_bar.get_theme_stylebox("fill")
-		if progress_style is StyleBoxFlat:
-			if not is_player_turn:
-				# Durante turno enemigo: color gris para indicar pausa
-				progress_style.bg_color = Color(0.5, 0.5, 0.5, 0.8)
-				pressure_timer_label.modulate = Color(0.7, 0.7, 0.7, 1.0)
-			elif pressure_timer <= 5.0:
-				progress_style.bg_color = Color(1.0, 0.1, 0.1, 1.0)  # Rojo intenso
-				pressure_timer_label.modulate = Color(1.0, 0.3, 0.3, 1.0)
-			elif pressure_timer <= 10.0:
-				progress_style.bg_color = Color(1.0, 0.5, 0.1, 1.0)  # Naranja
-				pressure_timer_label.modulate = Color(1.0, 0.6, 0.4, 1.0)
-			else:
-				progress_style.bg_color = Color(1.0, 0.3, 0.3, 0.8)  # Rojo normal
-				pressure_timer_label.modulate = Color(1.0, 0.8, 0.8, 1.0)
+
+
+# Funciones de display de cronómetros eliminadas - ahora manejadas por TopBar
 
 func _create_missing_nodes() -> void:
 	print("DEBUG: _create_missing_nodes iniciado")
@@ -312,161 +286,7 @@ func _create_missing_nodes() -> void:
 		_update_discard_button_display()
 		print("DEBUG: DiscardButton creado y conectado")
 
-# --- SISTEMA DE TOPBAR Y LOG DE COMBATE ---
-func _create_topbar_system() -> void:
-	"""Crea el sistema de topbar con botones y log de combate"""
-	print("🔧 Creando sistema de topbar y log de combate...")
-	
-	# Crear el contenedor principal del topbar
-	topbar_container = Panel.new()
-	topbar_container.name = "TopbarContainer"
-	topbar_container.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	topbar_container.size.y = 60  # Altura del topbar
-	topbar_container.z_index = 50  # Por encima de otros elementos
-	
-	# Estilo del topbar
-	var topbar_style = StyleBoxFlat.new()
-	topbar_style.bg_color = Color(0.15, 0.15, 0.2, 0.95)  # Fondo oscuro semi-transparente
-	topbar_style.border_width_bottom = 2
-	topbar_style.border_color = Color(0.4, 0.4, 0.5, 1.0)  # Borde inferior
-	topbar_container.add_theme_stylebox_override("panel", topbar_style)
-	
-	add_child(topbar_container)
-	
-	# Crear HBoxContainer para organizar los botones
-	var topbar_hbox = HBoxContainer.new()
-	topbar_hbox.name = "TopbarHBox"
-	topbar_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	topbar_hbox.add_theme_constant_override("separation", 20)
-	topbar_container.add_child(topbar_hbox)
-	
-	# Cronómetros en el lado izquierdo
-	var timers_container = VBoxContainer.new()
-	timers_container.name = "TimersContainer"
-	timers_container.custom_minimum_size = Vector2(200, 50)
-	timers_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	topbar_hbox.add_child(timers_container)
-	
-	# Cronómetro de partida
-	match_timer_label = Label.new()
-	match_timer_label.name = "MatchTimerLabel"
-	match_timer_label.text = "⏱️ Partida: 00:00"
-	match_timer_label.add_theme_font_size_override("font_size", 12)
-	match_timer_label.modulate = Color(0.8, 1.0, 0.8, 1.0)  # Verde claro
-	timers_container.add_child(match_timer_label)
-	
-	# Container para cronómetro de presión
-	var pressure_container = HBoxContainer.new()
-	pressure_container.add_theme_constant_override("separation", 5)
-	timers_container.add_child(pressure_container)
-	
-	# Cronómetro de presión
-	pressure_timer_label = Label.new()
-	pressure_timer_label.name = "PressureTimerLabel"
-	pressure_timer_label.text = "⚡ Presión: 15s"
-	pressure_timer_label.add_theme_font_size_override("font_size", 12)
-	pressure_timer_label.modulate = Color(1.0, 0.8, 0.8, 1.0)  # Rojo claro
-	pressure_container.add_child(pressure_timer_label)
-	
-	# Barra de progreso para cronómetro de presión
-	pressure_timer_bar = ProgressBar.new()
-	pressure_timer_bar.name = "PressureTimerBar"
-	pressure_timer_bar.custom_minimum_size = Vector2(80, 15)
-	pressure_timer_bar.max_value = pressure_timer_max
-	pressure_timer_bar.value = pressure_timer
-	pressure_timer_bar.show_percentage = false
-	
-	# Estilo de la barra de progreso
-	var progress_style = StyleBoxFlat.new()
-	progress_style.bg_color = Color(1.0, 0.3, 0.3, 0.8)  # Rojo para indicar peligro
-	progress_style.corner_radius_top_left = 3
-	progress_style.corner_radius_top_right = 3
-	progress_style.corner_radius_bottom_left = 3
-	progress_style.corner_radius_bottom_right = 3
-	pressure_timer_bar.add_theme_stylebox_override("fill", progress_style)
-	
-	var progress_bg_style = StyleBoxFlat.new()
-	progress_bg_style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
-	progress_bg_style.corner_radius_top_left = 3
-	progress_bg_style.corner_radius_top_right = 3
-	progress_bg_style.corner_radius_bottom_left = 3
-	progress_bg_style.corner_radius_bottom_right = 3
-	pressure_timer_bar.add_theme_stylebox_override("background", progress_bg_style)
-	
-	pressure_container.add_child(pressure_timer_bar)
-	
-	# Spacer para centrar el botón de log
-	var left_spacer = Control.new()
-	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	topbar_hbox.add_child(left_spacer)
-	
-	# Botón de Log de Combate (centrado)
-	combat_log_button = Button.new()
-	combat_log_button.name = "CombatLogButton"
-	combat_log_button.text = "📜 LOG DE COMBATE"
-	combat_log_button.custom_minimum_size = Vector2(200, 40)
-	combat_log_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	
-	# Estilo del botón de log
-	var log_button_style = StyleBoxFlat.new()
-	log_button_style.bg_color = Color(0.3, 0.4, 0.6, 0.8)
-	log_button_style.corner_radius_top_left = 8
-	log_button_style.corner_radius_top_right = 8
-	log_button_style.corner_radius_bottom_left = 8
-	log_button_style.corner_radius_bottom_right = 8
-	log_button_style.border_width_left = 1
-	log_button_style.border_width_right = 1
-	log_button_style.border_width_top = 1
-	log_button_style.border_width_bottom = 1
-	log_button_style.border_color = Color(0.5, 0.6, 0.8, 1.0)
-	combat_log_button.add_theme_stylebox_override("normal", log_button_style)
-	
-	# Estilo hover del botón
-	var log_button_hover_style = log_button_style.duplicate()
-	log_button_hover_style.bg_color = Color(0.4, 0.5, 0.7, 0.9)
-	combat_log_button.add_theme_stylebox_override("hover", log_button_hover_style)
-	
-	combat_log_button.pressed.connect(_on_combat_log_button_pressed)
-	topbar_hbox.add_child(combat_log_button)
-	
-	# Spacer derecho
-	var right_spacer = Control.new()
-	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	topbar_hbox.add_child(right_spacer)
-	
-	# Botón de Menú (esquina derecha)
-	menu_button = Button.new()
-	menu_button.name = "MenuButton"
-	menu_button.text = "☰ MENÚ"
-	menu_button.custom_minimum_size = Vector2(100, 40)
-	menu_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	
-	# Estilo del botón de menú
-	var menu_button_style = StyleBoxFlat.new()
-	menu_button_style.bg_color = Color(0.5, 0.3, 0.3, 0.8)
-	menu_button_style.corner_radius_top_left = 8
-	menu_button_style.corner_radius_top_right = 8
-	menu_button_style.corner_radius_bottom_left = 8
-	menu_button_style.corner_radius_bottom_right = 8
-	menu_button_style.border_width_left = 1
-	menu_button_style.border_width_right = 1
-	menu_button_style.border_width_top = 1
-	menu_button_style.border_width_bottom = 1
-	menu_button_style.border_color = Color(0.7, 0.5, 0.5, 1.0)
-	menu_button.add_theme_stylebox_override("normal", menu_button_style)
-	
-	# Estilo hover del botón de menú
-	var menu_button_hover_style = menu_button_style.duplicate()
-	menu_button_hover_style.bg_color = Color(0.6, 0.4, 0.4, 0.9)
-	menu_button.add_theme_stylebox_override("hover", menu_button_hover_style)
-	
-	menu_button.pressed.connect(_on_menu_button_pressed)
-	topbar_hbox.add_child(menu_button)
-	
-	# Crear el panel del log de combate (inicialmente oculto)
-	_create_combat_log_panel()
-	
-	print("✅ Sistema de topbar creado exitosamente")
+# --- SISTEMA DE LOG DE COMBATE ---
 
 func _create_combat_log_panel() -> void:
 	"""Crea el panel del log de combate"""
@@ -1067,43 +887,37 @@ func _apply_pressure_damage_to_character(character: CharacterData) -> void:
 
 func _reset_pressure_timer() -> void:
 	"""Reinicia el cronómetro de presión"""
-	pressure_timer = pressure_timer_max
-	_update_pressure_timer_display()  # Actualizar display inmediatamente
-	print("⚡ Cronómetro de presión reiniciado a ", pressure_timer_max, " segundos")
+	if topbar and topbar.has_method("reset_pressure_timer"):
+		topbar.reset_pressure_timer()
+		print("⚡ Cronómetro de presión reiniciado via TopBar")
 
 func set_pressure_timer_duration(seconds: float) -> void:
 	"""Configura la duración del cronómetro de presión"""
-	pressure_timer_max = seconds
-	pressure_timer = seconds
-	if pressure_timer_bar:
-		pressure_timer_bar.max_value = seconds
-	print("⚡ Cronómetro de presión configurado a ", seconds, " segundos")
+	if topbar and topbar.has_method("set_pressure_timer_duration"):
+		topbar.set_pressure_timer_duration(seconds)
+		print("⚡ Cronómetro de presión configurado a ", seconds, " segundos via TopBar")
 
 func stop_match_timer() -> void:
 	"""Detiene el cronómetro de partida (llamar cuando termine el juego)"""
-	var final_minutes = int(match_timer / 60)
-	var final_seconds = int(match_timer) % 60
-	var final_time = "%02d:%02d" % [final_minutes, final_seconds]
-	
-	add_combat_log_entry("⏱️ Partida terminada. Duración total: " + final_time)
-	print("⏱️ Partida terminada en: ", final_time)
-	
-	# Cambiar color del cronómetro para indicar que terminó
-	if match_timer_label:
-		match_timer_label.modulate = Color(0.6, 0.6, 0.6, 1.0)  # Gris para indicar que terminó
+	# El cronómetro ahora es manejado por TopBar
+	if topbar and topbar.has_method("pause_timers"):
+		topbar.pause_timers()
+		add_combat_log_entry("⏱️ Cronómetros detenidos - Juego terminado")
+		print("⏱️ Cronómetros detenidos via TopBar")
 
 func pause_timers(paused: bool) -> void:
 	"""Pausa/reanuda los cronómetros manualmente (para pausas del juego)"""
 	# Esta función es diferente al sistema de turnos
 	# Se usa para pausas manuales del juego completo
-	if paused:
-		pressure_attack_active = true  # Esto pausará ambos timers
-		add_combat_log_entry("⏸️ Juego pausado - Cronómetros detenidos")
-	else:
-		pressure_attack_active = false
-		add_combat_log_entry("▶️ Juego reanudado - Cronómetros activos")
-	
-	_update_pressure_timer_display()  # Actualizar display
+	if topbar:
+		if paused:
+			topbar.pause_timers()
+			pressure_attack_active = true
+			add_combat_log_entry("⏸️ Juego pausado - Cronómetros detenidos")
+		else:
+			topbar.resume_timers()
+			pressure_attack_active = false
+			add_combat_log_entry("▶️ Juego reanudado - Cronómetros activos")
 
 # --- SISTEMA DE GAME OVER ---
 func show_game_over(victory: bool) -> void:
@@ -1548,11 +1362,11 @@ func show_menu_modal() -> void:
 	timer_slider.min_value = 15.0
 	timer_slider.max_value = 30.0
 	timer_slider.step = 1.0
-	timer_slider.value = pressure_timer_max
+	timer_slider.value = 15.0  # Valor por defecto
 	timer_slider.custom_minimum_size = Vector2(200, 30)
 	
 	var timer_value_label = Label.new()
-	timer_value_label.text = str(int(pressure_timer_max)) + "s"
+	timer_value_label.text = "15s"  # Valor por defecto
 	timer_value_label.custom_minimum_size = Vector2(40, 30)
 	timer_value_label.add_theme_color_override("font_color", Color(1, 1, 0.8, 1))
 	

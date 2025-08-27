@@ -1,0 +1,109 @@
+[gd_scene load_steps=7 format=3 uid="uid://bd150w1qo1if1"]
+
+[ext_resource type="Script" uid="uid://bvku8h8w3gfaa" path="res://scripts/TopBar.gd" id="1_0j6fj"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qoeo3"]
+bg_color = Color(0.14902, 0.14902, 0.2, 1)
+border_width_bottom = 2
+border_color = Color(0.4, 0.4, 0.501961, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0j6fj"]
+bg_color = Color(1, 0.301961, 0.301961, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2bxwy"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xsx5j"]
+bg_color = Color(0.301961, 0.4, 0.6, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vdbop"]
+bg_color = Color(0.501961, 0.301961, 0.301961, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="TopBar" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -740.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_0j6fj")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_qoeo3")
+
+[node name="Content" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="LeftSection" type="VBoxContainer" parent="Content"]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="MatchTimer" type="Label" parent="Content/LeftSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "⏱️ Partida: 00:00"
+
+[node name="PressureSection" type="HBoxContainer" parent="Content/LeftSection"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="PressureTimer" type="Label" parent="Content/LeftSection/PressureSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0.501961, 1)
+theme_override_font_sizes/font_size = 12
+text = "⚡ Presión: 15s"
+
+[node name="PressureBar" type="ProgressBar" parent="Content/LeftSection/PressureSection"]
+custom_minimum_size = Vector2(80, 15)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_0j6fj")
+theme_override_styles/fill = SubResource("StyleBoxFlat_2bxwy")
+min_value = 100.0
+value = 100.0
+
+[node name="CenterSpacer" type="Control" parent="Content"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CombatLogButton" type="Button" parent="Content"]
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_xsx5j")
+text = "📜 LOG DE COMBATE"
+
+[node name="RightSpacer" type="Control" parent="Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MenuButton" type="Button" parent="Content"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vdbop")
+text = "☰ MENÚ"
