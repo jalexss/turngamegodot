@@ -34,10 +34,10 @@ theme_override_constants/separation = 200
 [node name="MainVBox" type="VBoxContainer" parent="."]
 custom_minimum_size = Vector2(1000, 0)
 layout_mode = 0
-offset_left = 92.0
-offset_top = 746.0
-offset_right = 1803.0
-offset_bottom = 819.0
+offset_left = 28.0
+offset_top = 680.0
+offset_right = 1739.0
+offset_bottom = 753.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MainVBox"]
 custom_minimum_size = Vector2(100, 25)
