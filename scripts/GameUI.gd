@@ -853,12 +853,7 @@ func _on_combat_log_button_pressed() -> void:
 func _on_menu_button_pressed() -> void:
 	"""Callback para el botón de menú"""
 	print("☰ Botón de menú presionado")
-	
-	# Funcionalidad de prueba: cambiar duración del cronómetro de presión
-	var new_duration = 30.0 if pressure_timer_max == 15.0 else 15.0
-	set_pressure_timer_duration(new_duration)
-	
-	add_combat_log_entry("☰ Cronómetro de presión cambiado a " + str(int(new_duration)) + " segundos")
+	show_menu_modal()
 
 func _on_close_combat_log_pressed() -> void:
 	"""Callback para cerrar el log de combate"""
@@ -1484,6 +1479,164 @@ func show_discard_modal() -> void:
 	var modal = _create_card_modal(title, discard_cards)
 	print("🔍 DEBUG: Modal creado, mostrando...")
 	_show_modal(modal)
+
+func show_menu_modal() -> void:
+	"""Muestra el modal de configuración del menú"""
+	print("☰ Abriendo modal de menú...")
+	
+	# Crear el modal principal
+	var modal = ColorRect.new()
+	modal.name = "MenuModal"
+	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	modal.color = Color(0, 0, 0, 0.7)  # Fondo semi-transparente
+	
+	# Crear panel central
+	var panel = Panel.new()
+	panel.custom_minimum_size = Vector2(400, 300)
+	panel.position = Vector2(
+		(get_viewport().get_visible_rect().size.x - 400) / 2,
+		(get_viewport().get_visible_rect().size.y - 300) / 2
+	)
+	
+	# Estilo del panel
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.2, 0.2, 0.3, 0.95)
+	panel_style.corner_radius_top_left = 10
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.corner_radius_bottom_right = 10
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.5, 0.5, 0.7, 1.0)
+	panel.add_theme_stylebox_override("panel", panel_style)
+	
+	# Crear VBoxContainer para organizar elementos
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("separation", 20)
+	
+	# Título del menú
+	var title_label = Label.new()
+	title_label.text = "☰ CONFIGURACIÓN"
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	vbox.add_child(title_label)
+	
+	# Separador
+	var separator1 = HSeparator.new()
+	separator1.add_theme_color_override("separator", Color(0.5, 0.5, 0.7, 0.8))
+	vbox.add_child(separator1)
+	
+	# Sección del cronómetro de presión
+	var timer_section = VBoxContainer.new()
+	timer_section.add_theme_constant_override("separation", 10)
+	
+	var timer_label = Label.new()
+	timer_label.text = "⏱️ Duración del Ataque Cronometrado"
+	timer_label.add_theme_font_size_override("font_size", 16)
+	timer_label.add_theme_color_override("font_color", Color(0.9, 0.9, 1, 1))
+	timer_section.add_child(timer_label)
+	
+	# Slider para el cronómetro
+	var timer_hbox = HBoxContainer.new()
+	timer_hbox.add_theme_constant_override("separation", 10)
+	
+	var timer_slider = HSlider.new()
+	timer_slider.min_value = 15.0
+	timer_slider.max_value = 30.0
+	timer_slider.step = 1.0
+	timer_slider.value = pressure_timer_max
+	timer_slider.custom_minimum_size = Vector2(200, 30)
+	
+	var timer_value_label = Label.new()
+	timer_value_label.text = str(int(pressure_timer_max)) + "s"
+	timer_value_label.custom_minimum_size = Vector2(40, 30)
+	timer_value_label.add_theme_color_override("font_color", Color(1, 1, 0.8, 1))
+	
+	# Conectar slider para actualizar valor en tiempo real
+	timer_slider.value_changed.connect(func(value): 
+		timer_value_label.text = str(int(value)) + "s"
+		set_pressure_timer_duration(value)
+		add_combat_log_entry("⏱️ Cronómetro cambiado a " + str(int(value)) + " segundos")
+	)
+	
+	timer_hbox.add_child(timer_slider)
+	timer_hbox.add_child(timer_value_label)
+	timer_section.add_child(timer_hbox)
+	
+	vbox.add_child(timer_section)
+	
+	# Separador
+	var separator2 = HSeparator.new()
+	separator2.add_theme_color_override("separator", Color(0.5, 0.5, 0.7, 0.8))
+	vbox.add_child(separator2)
+	
+	# Botones de acción
+	var buttons_hbox = HBoxContainer.new()
+	buttons_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons_hbox.add_theme_constant_override("separation", 20)
+	
+	# Botón para cerrar el juego
+	var quit_button = Button.new()
+	quit_button.text = "🚪 SALIR DEL JUEGO"
+	quit_button.custom_minimum_size = Vector2(150, 40)
+	
+	# Estilo del botón de salir
+	var quit_style = StyleBoxFlat.new()
+	quit_style.bg_color = Color(0.8, 0.3, 0.3, 0.9)
+	quit_style.corner_radius_top_left = 5
+	quit_style.corner_radius_top_right = 5
+	quit_style.corner_radius_bottom_left = 5
+	quit_style.corner_radius_bottom_right = 5
+	quit_button.add_theme_stylebox_override("normal", quit_style)
+	
+	var quit_hover_style = quit_style.duplicate()
+	quit_hover_style.bg_color = Color(1.0, 0.4, 0.4, 1.0)
+	quit_button.add_theme_stylebox_override("hover", quit_hover_style)
+	
+	quit_button.pressed.connect(func(): 
+		print("🚪 Cerrando el juego...")
+		get_tree().quit()
+	)
+	
+	# Botón para cerrar el modal
+	var close_button = Button.new()
+	close_button.text = "✕ CERRAR"
+	close_button.custom_minimum_size = Vector2(100, 40)
+	
+	# Estilo del botón de cerrar
+	var close_style = StyleBoxFlat.new()
+	close_style.bg_color = Color(0.4, 0.4, 0.5, 0.9)
+	close_style.corner_radius_top_left = 5
+	close_style.corner_radius_top_right = 5
+	close_style.corner_radius_bottom_left = 5
+	close_style.corner_radius_bottom_right = 5
+	close_button.add_theme_stylebox_override("normal", close_style)
+	
+	var close_hover_style = close_style.duplicate()
+	close_hover_style.bg_color = Color(0.5, 0.5, 0.6, 1.0)
+	close_button.add_theme_stylebox_override("hover", close_hover_style)
+	
+	close_button.pressed.connect(func(): 
+		print("✕ Cerrando modal de menú")
+		modal.queue_free()
+	)
+	
+	buttons_hbox.add_child(quit_button)
+	buttons_hbox.add_child(close_button)
+	vbox.add_child(buttons_hbox)
+	
+	# Ensamblar modal
+	panel.add_child(vbox)
+	modal.add_child(panel)
+	
+	# Agregar al árbol de escena
+	add_child(modal)
+	
+	print("✅ Modal de menú creado y mostrado")
 
 # --- LÓGICA DE HOVER ---
 func _get_top_card_at_position(global_pos: Vector2) -> Node2D:
