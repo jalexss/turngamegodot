@@ -5,6 +5,8 @@ extends Control
 const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 const TopBarScene = preload("res://scenes/TopBar.tscn")
 const ControlPanelScene = preload("res://scenes/ControlPanel.tscn")
+const DeckModalScene = preload("res://scenes/DeckModal.tscn")
+const DiscardModalScene = preload("res://scenes/DiscardModal.tscn")
 
 # --- NODOS DE LA ESCENA ---
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
@@ -18,6 +20,10 @@ const ControlPanelScene = preload("res://scenes/ControlPanel.tscn")
 # --- TOPBAR Y CONTROLPANEL ---
 var topbar: Control = null
 var control_panel: Control = null
+
+# --- MODALES ---
+var deck_modal: Control = null
+var discard_modal: Control = null
 
 # --- LOG DE COMBATE ---
 var combat_log_panel: Panel = null
@@ -71,6 +77,9 @@ func _ready() -> void:
 	
 	# Crear control panel usando la nueva escena
 	_setup_control_panel()
+	
+	# Crear modales
+	_setup_modals()
 	
 	# Crear pantalla de game over
 	_create_game_over_overlay()
@@ -182,6 +191,35 @@ func _setup_control_panel() -> void:
 		control_panel.discard_view_requested.connect(_on_discard_button_pressed)
 	
 	print("✅ ControlPanel configurado correctamente")
+
+func _setup_modals() -> void:
+	"""Configura los modales usando las escenas separadas"""
+	print("🎭 Configurando Modales...")
+	
+	# Instanciar DeckModal
+	deck_modal = DeckModalScene.instantiate()
+	deck_modal.name = "DeckModal"
+	deck_modal.z_index = 200  # Por encima de todo
+	add_child(deck_modal)
+	
+	# Conectar señales del DeckModal
+	if deck_modal.has_signal("modal_closed"):
+		deck_modal.modal_closed.connect(_on_deck_modal_closed)
+	
+	# Instanciar DiscardModal
+	discard_modal = DiscardModalScene.instantiate()
+	discard_modal.name = "DiscardModal"
+	discard_modal.z_index = 200  # Por encima de todo
+	add_child(discard_modal)
+	
+	# Conectar señales del DiscardModal
+	if discard_modal.has_signal("modal_closed"):
+		discard_modal.modal_closed.connect(_on_discard_modal_closed)
+	
+	if discard_modal.has_signal("card_selected"):
+		discard_modal.card_selected.connect(_on_discard_card_selected)
+	
+	print("✅ Modales configurados correctamente")
 
 # Funciones de display de cronómetros eliminadas - ahora manejadas por TopBar
 
@@ -1144,7 +1182,7 @@ func _on_modal_background_clicked(event: InputEvent) -> void:
 		_close_modal()
 
 func show_deck_modal() -> void:
-	"""Muestra el modal con las cartas del mazo"""
+	"""Muestra el modal con las cartas del mazo usando el nuevo DeckModal"""
 	print("📚 Abriendo modal del mazo...")
 	
 	# Obtener cartas del mazo desde Game.gd
@@ -1154,41 +1192,35 @@ func show_deck_modal() -> void:
 		return
 	
 	var deck_cards = game_node.get_deck_cards()
-	var title = "📚 MAZO (" + str(deck_cards.size()) + " cartas)"
 	
-	var modal = _create_card_modal(title, deck_cards)
-	_show_modal(modal)
+	# Usar el nuevo modal
+	if deck_modal and deck_modal.has_method("show_modal"):
+		deck_modal.show_modal(deck_cards)
+	else:
+		print("❌ DeckModal no está disponible")
 
 func show_discard_modal() -> void:
-	"""Muestra el modal con las cartas de descarte"""
+	"""Muestra el modal con las cartas de descarte usando el nuevo DiscardModal"""
 	print("🗑️ Abriendo modal de descarte...")
 	
 	# Obtener cartas de descarte desde Game.gd
 	var game_node = get_parent()
-	print("🔍 DEBUG: game_node = ", game_node)
-	
 	if not game_node:
 		print("❌ game_node es null!")
 		return
 	
 	if not game_node.has_method("get_discard_cards"):
 		print("❌ game_node no tiene método get_discard_cards")
-		print("🔍 Métodos disponibles en game_node: ", game_node.get_method_list())
 		return
 	
-	print("✅ Llamando a game_node.get_discard_cards()...")
 	var discard_cards = game_node.get_discard_cards()
 	print("🔍 DEBUG: discard_cards recibidas: ", discard_cards.size())
 	
-	if discard_cards.is_empty():
-		print("⚠️ No hay cartas en descarte para mostrar")
-	
-	var title = "🗑️ DESCARTE (" + str(discard_cards.size()) + " cartas)"
-	print("🔍 DEBUG: Creando modal con título: ", title)
-	
-	var modal = _create_card_modal(title, discard_cards)
-	print("🔍 DEBUG: Modal creado, mostrando...")
-	_show_modal(modal)
+	# Usar el nuevo modal
+	if discard_modal and discard_modal.has_method("show_modal"):
+		discard_modal.show_modal(discard_cards)
+	else:
+		print("❌ DiscardModal no está disponible")
 
 func show_menu_modal() -> void:
 	"""Muestra el modal de configuración del menú"""
@@ -2032,3 +2064,25 @@ func _update_all_status_effects(slots: Array) -> void:
 	for slot in slots:
 		if slot.visible and slot.has_method("update_status_effects"):
 			slot.update_status_effects()
+
+# --- CALLBACKS DE MODALES ---
+
+func _on_deck_modal_closed() -> void:
+	"""Callback cuando se cierra el modal del mazo"""
+	print("📚 Modal del mazo cerrado")
+
+func _on_discard_modal_closed() -> void:
+	"""Callback cuando se cierra el modal de descarte"""
+	print("🗑️ Modal de descarte cerrado")
+
+func _on_discard_card_selected(card_data) -> void:
+	"""Callback cuando se selecciona una carta del descarte para recuperar"""
+	print("🗑️ Carta seleccionada del descarte: ", card_data.name if card_data.has_method("get") else str(card_data))
+	
+	# Lógica para recuperar carta del descarte
+	var game_node = get_parent()
+	if game_node and game_node.has_method("recover_card_from_discard"):
+		game_node.recover_card_from_discard(card_data)
+		add_combat_log_entry("🔄 Carta recuperada del descarte: " + str(card_data.name if card_data.has_method("get") else card_data))
+	else:
+		print("❌ No se puede recuperar carta - método no disponible")

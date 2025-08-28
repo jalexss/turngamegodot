@@ -1,0 +1,109 @@
+[gd_scene load_steps=4 format=3 uid="uid://cq2yfrgfewt1k"]
+
+[ext_resource type="Script" uid="uid://b3806x83pdqyq" path="res://scripts/DeckModal.gd" id="1_2u5qc"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wd3tk"]
+bg_color = Color(0.164706, 0.164706, 0.207843, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.290196, 0.290196, 0.333333, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2u5qc"]
+bg_color = Color(0.6, 0.301961, 0.301961, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="DeckModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(1.00346, 0.998246)
+mouse_filter = 1
+script = ExtResource("1_2u5qc")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="ModalPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -780.0
+offset_top = -300.0
+offset_right = 20.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(1.924, 1)
+theme_override_styles/panel = SubResource("StyleBoxFlat_wd3tk")
+
+[node name="Content" type="VBoxContainer" parent="ModalPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 6.22
+offset_bottom = 6.21997
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.99481, 0.974956)
+theme_override_constants/separation = 21
+
+[node name="Header" type="HBoxContainer" parent="ModalPanel/Content"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="ModalPanel/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "📚 MAZO (0 cartas)"
+vertical_alignment = 1
+
+[node name="CloseButton" type="Button" parent="ModalPanel/Content/Header"]
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_2u5qc")
+text = "✕ CERRAR"
+
+[node name="Separator" type="HSeparator" parent="ModalPanel/Content"]
+layout_mode = 2
+
+[node name="CardGrid" type="ScrollContainer" parent="ModalPanel/Content"]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="GridContainer" type="GridContainer" parent="ModalPanel/Content/CardGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 4
