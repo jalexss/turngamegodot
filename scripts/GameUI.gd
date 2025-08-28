@@ -4,6 +4,7 @@ extends Control
 # Importar clases necesarias
 const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 const TopBarScene = preload("res://scenes/TopBar.tscn")
+const ControlPanelScene = preload("res://scenes/ControlPanel.tscn")
 
 # --- NODOS DE LA ESCENA ---
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
@@ -12,15 +13,13 @@ const TopBarScene = preload("res://scenes/TopBar.tscn")
 @onready var turn_label = get_node_or_null("MainVBox/HBoxContainer/TurnPanel/TurnLabel") as Label
 @onready var energy_label = get_node_or_null("MainVBox/HBoxContainer/EnergyPanel/EnergyLabel") as Label
 @onready var hand_container = get_node_or_null("HandContainer") as HandContainer
-@onready var test_button = get_node_or_null("TestButton") as Button
-@onready var discard_button = get_node_or_null("DiscardButton") as Button
-@onready var energy_button = get_node_or_null("EnergyButton") as Button
-@onready var end_turn_button = get_node_or_null("EndTurnButton") as Button
-@onready var deck_button = get_node_or_null("DeckButton") as Button
-@onready var overflow_button = get_node_or_null("OverflowButton") as Button
+# Botón de descarte ahora está en ControlPanel
 
-# --- TOPBAR Y LOG DE COMBATE ---
+# --- TOPBAR Y CONTROLPANEL ---
 var topbar: Control = null
+var control_panel: Control = null
+
+# --- LOG DE COMBATE ---
 var combat_log_panel: Panel = null
 var combat_log_scroll: ScrollContainer = null
 var combat_log_content: VBoxContainer = null
@@ -70,6 +69,9 @@ func _ready() -> void:
 	# Crear topbar usando la nueva escena
 	_setup_topbar()
 	
+	# Crear control panel usando la nueva escena
+	_setup_control_panel()
+	
 	# Crear pantalla de game over
 	_create_game_over_overlay()
 	
@@ -93,14 +95,9 @@ func _ready() -> void:
 	else:
 		print("❌ ERROR: enemy_slots_container no encontrado")
 	
-	# Configurar botón de pruebas
-	if test_button:
-		test_button.pressed.connect(_on_test_button_pressed)
-		test_button.text = "Añadir Carta (Test)"
+	# Los botones de control ahora están en ControlPanel
 	
-	# Configurar botón de descarte
-	if discard_button:
-		_update_discard_button_display()
+	# Botón de descarte ahora está en ControlPanel
 	
 	# Crear nodos faltantes si es necesario
 	_create_missing_nodes()
@@ -149,7 +146,42 @@ func _setup_topbar() -> void:
 	
 	print("✅ TopBar configurado correctamente")
 
-
+# --- SETUP DEL NUEVO CONTROLPANEL ---
+func _setup_control_panel() -> void:
+	"""Configura el nuevo ControlPanel usando la escena separada"""
+	print("🎮 Configurando ControlPanel...")
+	
+	# Instanciar la escena ControlPanel
+	control_panel = ControlPanelScene.instantiate()
+	control_panel.name = "ControlPanel"
+	
+	# Configurar posición (esquina superior izquierda, debajo del topbar)
+	control_panel.position = Vector2(20, 80)  # Debajo del TopBar
+	control_panel.z_index = 40
+	
+	# Agregar al GameUI
+	add_child(control_panel)
+	
+	# Conectar señales del ControlPanel
+	if control_panel.has_signal("test_card_requested"):
+		control_panel.test_card_requested.connect(_on_test_button_pressed)
+	
+	if control_panel.has_signal("energy_boost_requested"):
+		control_panel.energy_boost_requested.connect(_on_energy_button_pressed)
+	
+	if control_panel.has_signal("end_turn_requested"):
+		control_panel.end_turn_requested.connect(_on_end_turn_button_pressed)
+	
+	if control_panel.has_signal("deck_view_requested"):
+		control_panel.deck_view_requested.connect(_on_deck_button_pressed)
+	
+	if control_panel.has_signal("overflow_cards_requested"):
+		control_panel.overflow_cards_requested.connect(_on_overflow_button_pressed)
+	
+	if control_panel.has_signal("discard_view_requested"):
+		control_panel.discard_view_requested.connect(_on_discard_button_pressed)
+	
+	print("✅ ControlPanel configurado correctamente")
 
 # Funciones de display de cronómetros eliminadas - ahora manejadas por TopBar
 
@@ -189,102 +221,7 @@ func _create_missing_nodes() -> void:
 		enemy_slots_container = new_enemy_container
 		print("DEBUG: EnemyChars container creado")
 	
-	# Crear TestButton si no existe
-	if not test_button:
-		print("DEBUG: Creando TestButton automáticamente...")
-		var new_button = Button.new()
-		new_button.name = "TestButton"
-		new_button.text = "Añadir Carta (Test)"
-		new_button.position = Vector2(50, 50)
-		new_button.size = Vector2(200, 60)  # Más grande para ser más visible
-		add_child(new_button)
-		test_button = new_button
-		# Conectar la señal aquí también
-		test_button.pressed.connect(_on_test_button_pressed)
-		print("DEBUG: TestButton creado y conectado")
-	
-	# Crear EnergyButton si no existe
-	if not energy_button:
-		print("DEBUG: Creando EnergyButton automáticamente...")
-		var new_energy_button = Button.new()
-		new_energy_button.name = "EnergyButton"
-		new_energy_button.text = "+3 Energía (∞)"
-		new_energy_button.position = Vector2(270, 50)  # Al lado del TestButton
-		new_energy_button.size = Vector2(180, 60)
-		add_child(new_energy_button)
-		energy_button = new_energy_button
-		# Conectar la señal
-		energy_button.pressed.connect(_on_energy_button_pressed)
-	
-	# Crear EndTurnButton si no existe
-	if not end_turn_button:
-		print("DEBUG: Creando EndTurnButton automáticamente...")
-		var new_end_turn_button = Button.new()
-		new_end_turn_button.name = "EndTurnButton"
-		new_end_turn_button.text = "🔄 TERMINAR TURNO"
-		new_end_turn_button.position = Vector2(1500, 50)  # Esquina superior derecha
-		new_end_turn_button.size = Vector2(200, 80)
-		# Estilo llamativo
-		new_end_turn_button.modulate = Color(1.2, 1.2, 0.8)  # Amarillo claro
-		add_child(new_end_turn_button)
-		end_turn_button = new_end_turn_button
-		# Conectar la señal
-		end_turn_button.pressed.connect(_on_end_turn_button_pressed)
-		print("DEBUG: EndTurnButton creado y conectado")
-	
-	# Crear DeckButton si no existe
-	if not deck_button:
-		print("DEBUG: Creando DeckButton automáticamente...")
-		var new_deck_button = Button.new()
-		new_deck_button.name = "DeckButton"
-		new_deck_button.text = "📚 20"
-		new_deck_button.position = Vector2(50, 150)  # Debajo del TestButton
-		new_deck_button.size = Vector2(100, 80)
-		# Estilo del mazo
-		new_deck_button.modulate = Color(0.8, 0.9, 1.0)  # Azul claro
-		add_child(new_deck_button)
-		deck_button = new_deck_button
-		deck_button.pressed.connect(_on_deck_button_pressed)
-		print("DEBUG: DeckButton creado y conectado")
-	
-	# Crear OverflowButton si no existe (inicialmente oculto)
-	if not overflow_button:
-		print("DEBUG: Creando OverflowButton automáticamente...")
-		var new_overflow_button = Button.new()
-		new_overflow_button.name = "OverflowButton"
-		new_overflow_button.text = "📥 +0"
-		new_overflow_button.position = Vector2(170, 150)  # Al lado del DeckButton
-		new_overflow_button.size = Vector2(120, 80)
-		# Estilo llamativo
-		new_overflow_button.modulate = Color(1.2, 1.0, 0.8)  # Naranja claro
-		new_overflow_button.visible = false  # Oculto por defecto
-		add_child(new_overflow_button)
-		overflow_button = new_overflow_button
-		# Conectar la señal
-		overflow_button.pressed.connect(_on_overflow_button_pressed)
-		print("DEBUG: OverflowButton creado y conectado")
-	
-	# Conectar DiscardButton si existe en la escena
-	if discard_button:
-		print("DEBUG: DiscardButton encontrado en escena, conectando...")
-		# Desconectar cualquier conexión previa para evitar duplicados
-		if discard_button.pressed.is_connected(_on_discard_button_pressed):
-			discard_button.pressed.disconnect(_on_discard_button_pressed)
-		discard_button.pressed.connect(_on_discard_button_pressed)
-		_update_discard_button_display()
-		print("DEBUG: DiscardButton conectado exitosamente")
-	else:
-		print("DEBUG: Creando DiscardButton automáticamente...")
-		var new_discard_button = Button.new()
-		new_discard_button.name = "DiscardButton"
-		new_discard_button.text = "0"
-		new_discard_button.position = Vector2(1700, 50)
-		new_discard_button.size = Vector2(150, 100)
-		add_child(new_discard_button)
-		discard_button = new_discard_button
-		discard_button.pressed.connect(_on_discard_button_pressed)
-		_update_discard_button_display()
-		print("DEBUG: DiscardButton creado y conectado")
+	# Los botones de control ahora están en ControlPanel.tscn
 
 # --- SISTEMA DE LOG DE COMBATE ---
 
@@ -514,11 +451,16 @@ func _end_card_drag(mouse_pos: Vector2) -> void:
 	dragged_card = null
 
 func _is_position_over_discard_button(pos: Vector2) -> bool:
-	"""Verifica si la posición está sobre el botón de descarte"""
-	if not discard_button:
+	"""Verifica si la posición está sobre el botón de descarte del ControlPanel"""
+	if not control_panel:
 		return false
 	
-	var button_rect = discard_button.get_global_rect()
+	# Buscar el botón de descarte dentro del ControlPanel
+	var discard_btn = control_panel.get_node_or_null("ButtonsContainer/BottomRow/DiscardButton")
+	if not discard_btn:
+		return false
+	
+	var button_rect = discard_btn.get_global_rect()
 	return button_rect.has_point(pos)
 
 # --- GESTIÓN DE LA MANO (DELEGADA) ---
@@ -614,14 +556,7 @@ func _on_discard_button_pressed() -> void:
 	print("🗑️ Botón de descarte presionado")
 	print("🔍 DEBUG: Verificando conexión del botón de descarte...")
 	
-	# Debug adicional
-	if discard_button:
-		print("✅ discard_button existe: ", discard_button.name)
-		print("✅ discard_button visible: ", discard_button.visible)
-		print("✅ discard_button disabled: ", discard_button.disabled)
-	else:
-		print("❌ discard_button es null!")
-		return
+	# El botón de descarte ahora está en ControlPanel
 	
 	show_discard_modal()
 
@@ -799,26 +734,9 @@ func _block_player_actions(blocked: bool) -> void:
 	# Bloquear cartas
 	_set_cards_interactive(not blocked)
 	
-	# Bloquear botones
-	if test_button:
-		test_button.disabled = blocked
-		test_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
-	
-	if end_turn_button:
-		end_turn_button.disabled = blocked
-		end_turn_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
-	
-	if overflow_button:
-		overflow_button.disabled = blocked
-		overflow_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
-	
-	if discard_button:
-		discard_button.disabled = blocked
-		discard_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
-	
-	if deck_button:
-		deck_button.disabled = blocked
-		deck_button.modulate = Color(0.5, 0.5, 0.5) if blocked else Color.WHITE
+	# Bloquear botones del ControlPanel (incluye descarte)
+	if control_panel and control_panel.has_method("set_buttons_enabled"):
+		control_panel.set_buttons_enabled(not blocked)
 	
 	print("🔒 Acciones del jugador ", "bloqueadas" if blocked else "desbloqueadas")
 
@@ -992,22 +910,9 @@ func set_player_turn_active(active: bool) -> void:
 		# Inicio del turno enemigo: el cronómetro se pausa automáticamente
 		add_combat_log_entry("🤖 Es el turno de los enemigos - ⚡ Cronómetro de presión pausado")
 	
-	# Botones que se deshabilitan durante turno enemigo
-	if test_button:
-		test_button.disabled = not active
-		test_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
-	
-	if energy_button:
-		energy_button.disabled = not active
-		energy_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
-	
-	if end_turn_button:
-		end_turn_button.disabled = not active
-		end_turn_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
-	
-	if overflow_button:
-		overflow_button.disabled = not active
-		overflow_button.modulate = Color.WHITE if active else Color(0.5, 0.5, 0.5)
+	# Botones del ControlPanel que se deshabilitan durante turno enemigo
+	if control_panel and control_panel.has_method("set_buttons_enabled"):
+		control_panel.set_buttons_enabled(active)
 	
 	# Las cartas también se deshabilitan
 	_set_cards_interactive(active)
@@ -1027,18 +932,9 @@ func set_game_over(player_defeated: bool) -> void:
 	"""Deshabilita toda la UI cuando el juego termina"""
 	print("💀 GAME OVER - Jugador derrotado: ", player_defeated)
 	
-	# Deshabilitar TODOS los botones excepto mazo y descarte
-	if test_button:
-		test_button.disabled = true
-		test_button.modulate = Color(0.3, 0.3, 0.3)
-	
-	if energy_button:
-		energy_button.disabled = true
-		energy_button.modulate = Color(0.3, 0.3, 0.3)
-	
-	if end_turn_button:
-		end_turn_button.disabled = true
-		end_turn_button.modulate = Color(0.3, 0.3, 0.3)
+	# Deshabilitar TODOS los botones del ControlPanel
+	if control_panel and control_panel.has_method("set_buttons_enabled"):
+		control_panel.set_buttons_enabled(false)
 	
 	# Deshabilitar cartas completamente
 	_set_cards_interactive(false)
@@ -1947,16 +1843,15 @@ func add_pending_card(card_data) -> void:
 
 func update_deck_count(count: int) -> void:
 	"""Actualiza el contador del mazo"""
-	if deck_button:
-		deck_button.text = "📚 " + str(count)
+	if control_panel and control_panel.has_method("update_deck_count"):
+		control_panel.update_deck_count(count)
 		print("📚 Mazo actualizado: ", count, " cartas")
 
 func update_overflow_count() -> void:
 	"""Actualiza el contador de cartas pendientes"""
-	if overflow_button:
+	if control_panel and control_panel.has_method("update_overflow_count"):
 		var count = pending_cards.size()
-		overflow_button.text = "📥 +" + str(count)
-		overflow_button.visible = count > 0
+		control_panel.update_overflow_count(count)
 		print("📥 Cartas pendientes: ", count)
 
 func show_hand_full_message() -> void:
@@ -1985,12 +1880,8 @@ func hide_hand_full_message() -> void:
 
 func show_overflow_blocking_message() -> void:
 	"""Muestra mensaje cuando el overflow bloquea el robo de cartas"""
-	if overflow_button:
-		# Hacer que el botón parpadee para llamar la atención
-		var tween = create_tween()
-		tween.set_loops(3)
-		tween.tween_property(overflow_button, "modulate", Color.YELLOW, 0.3)
-		tween.tween_property(overflow_button, "modulate", Color(1.2, 1.0, 0.8), 0.3)
+	# El mensaje visual ahora se maneja en ControlPanel
+	add_combat_log_entry("📥 ¡Hay cartas pendientes! Usa el botón de overflow para añadirlas")
 	
 	print("⚠️ Overflow bloqueando robo de cartas - Botón parpadeando")
 
@@ -2023,18 +1914,17 @@ func _discard_card(card: Node2D) -> void:
 		
 		# Añadir al descarte local (para compatibilidad)
 		discard_pile.append(card.data)
-		_update_discard_button_display()
+		_update_discard_count_display()
 	
 	# Remover de la mano visual
 	hand_container.remove_child(card)
 	card.queue_free()
 
-func _update_discard_button_display() -> void:
-	"""Actualiza el display del botón de descarte"""
-	print("🔍 DEBUG: _update_discard_button_display() llamado")
-	print("🔍 DEBUG: discard_button = ", discard_button)
+func _update_discard_count_display() -> void:
+	"""Actualiza el contador de descarte en el ControlPanel"""
+	print("🔍 DEBUG: _update_discard_count_display() llamado")
 	
-	if discard_button:
+	if control_panel and control_panel.has_method("update_discard_count"):
 		# Obtener el tamaño real del descarte desde Player.gd
 		var game_node = get_parent()
 		var real_discard_size = 0
@@ -2049,11 +1939,10 @@ func _update_discard_button_display() -> void:
 			real_discard_size = discard_pile.size()
 			print("🔍 DEBUG: Usando descarte local: ", real_discard_size)
 		
-		print("🔍 DEBUG: Actualizando botón de ", discard_button.text, " a ", str(real_discard_size))
-		discard_button.text = str(real_discard_size)
-		print("✅ DEBUG: Botón actualizado a: ", discard_button.text)
+		control_panel.update_discard_count(real_discard_size)
+		print("✅ DEBUG: Contador de descarte actualizado a: ", real_discard_size)
 	else:
-		print("❌ DEBUG: discard_button es null")
+		print("❌ DEBUG: control_panel no disponible o no tiene update_discard_count")
 
 func get_discard_pile_size() -> int:
 	"""Retorna el tamaño de la pila de descarte"""
@@ -2062,7 +1951,7 @@ func get_discard_pile_size() -> int:
 func clear_discard_pile() -> void:
 	"""Limpia la pila de descarte"""
 	discard_pile.clear()
-	_update_discard_button_display()
+	_update_discard_count_display()
 
 # --- OTRAS FUNCIONES DE UI ---
 func _initialize_character_slots(container: HBoxContainer, slots_array: Array, count: int):

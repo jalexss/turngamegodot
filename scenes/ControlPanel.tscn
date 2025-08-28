@@ -1,0 +1,92 @@
+[gd_scene load_steps=8 format=3 uid="uid://bectvk2qu835d"]
+
+[ext_resource type="Script" uid="uid://l6c0ugyqrrju" path="res://scripts/ControlPanel.gd" id="1_k6njy"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_k6njy"]
+bg_color = Color(0.301961, 0.4, 0.6, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smcf5"]
+bg_color = Color(0.301961, 0.6, 0.4, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7cayk"]
+bg_color = Color(0.6, 0.427451, 0.301961, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rcti4"]
+bg_color = Color(0.4, 0.301961, 0.6, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5dfae"]
+bg_color = Color(0.6, 0.6, 0.4, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m8lrw"]
+bg_color = Color(0.6, 0.301961, 0.301961, 1)
+
+[node name="ControlPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 60.0
+offset_top = 650.0
+offset_right = 440.0
+offset_bottom = 770.0
+script = ExtResource("1_k6njy")
+
+[node name="ButtonsContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -43.0
+offset_right = 44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="TopRow" type="HBoxContainer" parent="ButtonsContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TestButton" type="Button" parent="ButtonsContainer/TopRow"]
+custom_minimum_size = Vector2(140, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_k6njy")
+text = "🧪 Añadir Carta (test)"
+
+[node name="EnergyButton" type="Button" parent="ButtonsContainer/TopRow"]
+custom_minimum_size = Vector2(140, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_smcf5")
+text = "⚡ +3 Energía (test)"
+
+[node name="EndTurnButton" type="Button" parent="ButtonsContainer/TopRow"]
+custom_minimum_size = Vector2(140, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_7cayk")
+text = "🔄 Terminar Turno"
+
+[node name="BottomRow" type="HBoxContainer" parent="ButtonsContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="DeckButton" type="Button" parent="ButtonsContainer/BottomRow"]
+custom_minimum_size = Vector2(100, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_rcti4")
+text = "📚 Mazo (0)"
+
+[node name="OverflowButton" type="Button" parent="ButtonsContainer/BottomRow"]
+custom_minimum_size = Vector2(80, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_5dfae")
+text = "📥 +0"
+
+[node name="DiscardButton" type="Button" parent="ButtonsContainer/BottomRow"]
+custom_minimum_size = Vector2(80, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_m8lrw")
+text = "🗑️ 0"
