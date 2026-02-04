@@ -77,6 +77,8 @@ func _ready() -> void:
 	
 	# Crear control panel usando la nueva escena
 	_setup_control_panel()
+	_bind_viewport_size_changed()
+	call_deferred("_update_control_panel_layout")
 	
 	# Crear modales
 	_setup_modals()
@@ -132,9 +134,15 @@ func _setup_topbar() -> void:
 	topbar = TopBarScene.instantiate()
 	topbar.name = "TopBar"
 	
-	# Configurar posición y tamaño
-	topbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	topbar.size.y = 60
+	# Configurar anclajes explícitos para top-wide
+	topbar.anchor_left = 0.0
+	topbar.anchor_top = 0.0
+	topbar.anchor_right = 1.0
+	topbar.anchor_bottom = 0.0
+	topbar.offset_left = 0.0
+	topbar.offset_top = 0.0
+	topbar.offset_right = 0.0
+	topbar.offset_bottom = 60.0
 	topbar.z_index = 50
 	
 	# Agregar al GameUI
@@ -157,19 +165,19 @@ func _setup_topbar() -> void:
 
 # --- SETUP DEL NUEVO CONTROLPANEL ---
 func _setup_control_panel() -> void:
-	"""Configura el nuevo ControlPanel usando la escena separada"""
+	"""Configura el nuevo ControlPanel en la esquina inferior derecha"""
 	print("🎮 Configurando ControlPanel...")
 	
 	# Instanciar la escena ControlPanel
 	control_panel = ControlPanelScene.instantiate()
 	control_panel.name = "ControlPanel"
-	
-	# Configurar posición (esquina superior izquierda, debajo del topbar)
-	control_panel.position = Vector2(20, 80)  # Debajo del TopBar
 	control_panel.z_index = 40
 	
 	# Agregar al GameUI
 	add_child(control_panel)
+	
+	# Posicionar en esquina inferior derecha
+	call_deferred("_update_control_panel_layout")
 	
 	# Conectar señales del ControlPanel
 	if control_panel.has_signal("test_card_requested"):
@@ -191,6 +199,39 @@ func _setup_control_panel() -> void:
 		control_panel.discard_view_requested.connect(_on_discard_button_pressed)
 	
 	print("✅ ControlPanel configurado correctamente")
+
+func _bind_viewport_size_changed() -> void:
+	var viewport := get_viewport()
+	if viewport and not viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.connect(_on_viewport_size_changed)
+
+func _on_viewport_size_changed() -> void:
+	_update_control_panel_layout()
+
+const TOPBAR_HEIGHT := 60.0
+
+func _update_control_panel_layout() -> void:
+	if not control_panel:
+		return
+	
+	# Obtener tamaño del contenido
+	var buttons_container = control_panel.get_node_or_null("ButtonsContainer")
+	var panel_size := Vector2(460, 80)  # Tamaño base
+	if buttons_container:
+		panel_size = buttons_container.get_combined_minimum_size()
+		buttons_container.size = panel_size
+	
+	control_panel.size = panel_size
+	
+	# Obtener tamaño del viewport base del proyecto (1920x1080)
+	var viewport_size := Vector2(1920, 1080)
+	var margin := 15.0
+	
+	# Posicionar en esquina inferior derecha
+	control_panel.position = Vector2(
+		viewport_size.x - panel_size.x - margin,
+		viewport_size.y - panel_size.y - margin
+	)
 
 func _setup_modals() -> void:
 	"""Configura los modales usando las escenas separadas"""

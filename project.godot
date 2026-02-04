@@ -8,20 +8,24 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="TurnGameGodot"
 run/main_scene="uid://b2reu6uluh32d"
-config/features=PackedStringArray("4.4", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [display]
 
-window/size/viewport_width=1900
-window/size/viewport_height=800
-window/size/initial_position=Vector2i(640, 360)
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/initial_position=Vector2i(0, 0)
 window/stretch/mode="canvas_items"
-window/stretch/scale_mode="integer"
+window/stretch/scale_mode="fractional"
 
 [dotnet]
 
