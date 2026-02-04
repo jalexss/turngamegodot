@@ -88,6 +88,7 @@ func _ready() -> void:
 	
 	# Crear nodos faltantes automáticamente
 	_create_missing_nodes()
+	_update_layout_for_viewport()
 	
 	# Inicializar slots de personajes
 	print("DEBUG: Inicializando slots de personajes...")
@@ -142,7 +143,7 @@ func _setup_topbar() -> void:
 	topbar.offset_left = 0.0
 	topbar.offset_top = 0.0
 	topbar.offset_right = 0.0
-	topbar.offset_bottom = 60.0
+	topbar.offset_bottom = TOPBAR_HEIGHT_BASE
 	topbar.z_index = 50
 	
 	# Agregar al GameUI
@@ -177,7 +178,7 @@ func _setup_control_panel() -> void:
 	add_child(control_panel)
 	
 	# Posicionar en esquina inferior derecha
-	call_deferred("_update_control_panel_layout")
+	call_deferred("_update_layout_for_viewport")
 	
 	# Conectar señales del ControlPanel
 	if control_panel.has_signal("test_card_requested"):
@@ -206,32 +207,156 @@ func _bind_viewport_size_changed() -> void:
 		viewport.size_changed.connect(_on_viewport_size_changed)
 
 func _on_viewport_size_changed() -> void:
-	_update_control_panel_layout()
+	_update_layout_for_viewport()
 
-const TOPBAR_HEIGHT := 60.0
+const BASE_VIEWPORT := Vector2(1920, 1080)
+const TOPBAR_HEIGHT_BASE := 60.0
+const CONTROL_PANEL_MARGIN_BASE := 15.0
+const PLAYER_AREA_LEFT := 0.05
+const PLAYER_AREA_RIGHT := 0.48
+const ENEMY_AREA_LEFT := 0.52
+const ENEMY_AREA_RIGHT := 0.95
+const CHARACTER_AREA_TOP := 0.25
+const CHARACTER_AREA_BOTTOM := 0.55
+const HAND_Y_RATIO := 0.78
+const PLAYER_SLOT_COUNT := 3
+const ENEMY_SLOT_COUNT := 5
+const SLOT_MIN_WIDTH := 90.0
+const SLOT_MAX_WIDTH := 160.0
+
+var last_layout_scale: float = 1.0
+var last_player_slot_size: Vector2 = Vector2(140, 180)
+var last_enemy_slot_size: Vector2 = Vector2(140, 180)
 
 func _update_control_panel_layout() -> void:
 	if not control_panel:
 		return
-	
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0 or viewport_size.y <= 0:
+		return
+
+	var scale := _get_layout_scale(viewport_size)
+
 	# Obtener tamaño del contenido
 	var buttons_container = control_panel.get_node_or_null("ButtonsContainer")
-	var panel_size := Vector2(460, 80)  # Tamaño base
+	var panel_size := Vector2(460, 80) * scale  # Tamaño base escalado
 	if buttons_container:
-		panel_size = buttons_container.get_combined_minimum_size()
 		buttons_container.size = panel_size
 	
 	control_panel.size = panel_size
 	
-	# Obtener tamaño del viewport base del proyecto (1920x1080)
-	var viewport_size := Vector2(1920, 1080)
-	var margin := 15.0
+	var margin := CONTROL_PANEL_MARGIN_BASE * scale
 	
 	# Posicionar en esquina inferior derecha
 	control_panel.position = Vector2(
 		viewport_size.x - panel_size.x - margin,
 		viewport_size.y - panel_size.y - margin
 	)
+
+func _get_layout_scale(viewport_size: Vector2) -> float:
+	var scale: float = min(viewport_size.x / BASE_VIEWPORT.x, viewport_size.y / BASE_VIEWPORT.y)
+	return clamp(scale, 0.7, 1.5)
+
+func _update_layout_for_viewport() -> void:
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0 or viewport_size.y <= 0:
+		return
+
+	var scale: float = _get_layout_scale(viewport_size)
+	last_layout_scale = scale
+
+	_update_topbar_layout(scale)
+	_update_control_panel_layout()
+	_update_character_layout(viewport_size, scale)
+	_update_hand_layout(viewport_size, scale)
+	_update_combat_log_layout(viewport_size, scale)
+
+func _update_topbar_layout(scale: float) -> void:
+	if not topbar:
+		return
+
+	var height := TOPBAR_HEIGHT_BASE * scale
+	topbar.custom_minimum_size = Vector2(0, height)
+	topbar.offset_bottom = height
+
+func _apply_container_area(container: Control, left: float, top: float, right: float, bottom: float, margin: float) -> void:
+	if not container:
+		return
+	container.anchor_left = left
+	container.anchor_top = top
+	container.anchor_right = right
+	container.anchor_bottom = bottom
+	container.offset_left = margin
+	container.offset_top = margin
+	container.offset_right = -margin
+	container.offset_bottom = -margin
+
+func _update_character_layout(viewport_size: Vector2, scale: float) -> void:
+	var margin := 12.0 * scale
+	var player_slot_size := _calculate_slot_size(viewport_size.x, PLAYER_AREA_LEFT, PLAYER_AREA_RIGHT, PLAYER_SLOT_COUNT, scale, margin)
+	var enemy_slot_size := _calculate_slot_size(viewport_size.x, ENEMY_AREA_LEFT, ENEMY_AREA_RIGHT, ENEMY_SLOT_COUNT, scale, margin)
+	last_player_slot_size = player_slot_size
+	last_enemy_slot_size = enemy_slot_size
+
+	var player_sep := _calculate_separation(viewport_size.x, PLAYER_AREA_LEFT, PLAYER_AREA_RIGHT, PLAYER_SLOT_COUNT, player_slot_size.x, scale, margin)
+	var enemy_sep := _calculate_separation(viewport_size.x, ENEMY_AREA_LEFT, ENEMY_AREA_RIGHT, ENEMY_SLOT_COUNT, enemy_slot_size.x, scale, margin)
+
+	if player_slots_container:
+		_apply_container_area(player_slots_container, PLAYER_AREA_LEFT, CHARACTER_AREA_TOP, PLAYER_AREA_RIGHT, CHARACTER_AREA_BOTTOM, margin)
+		player_slots_container.alignment = BoxContainer.ALIGNMENT_CENTER
+		player_slots_container.add_theme_constant_override("separation", player_sep)
+
+	if enemy_slots_container:
+		_apply_container_area(enemy_slots_container, ENEMY_AREA_LEFT, CHARACTER_AREA_TOP, ENEMY_AREA_RIGHT, CHARACTER_AREA_BOTTOM, margin)
+		enemy_slots_container.alignment = BoxContainer.ALIGNMENT_CENTER
+		enemy_slots_container.add_theme_constant_override("separation", enemy_sep)
+
+	_update_character_slot_sizes(scale, player_slot_size, enemy_slot_size)
+
+func _calculate_slot_size(viewport_width: float, left: float, right: float, count: int, scale: float, margin: float) -> Vector2:
+	var area_width: float = max(0.0, viewport_width * (right - left) - margin * 2.0)
+	var min_sep: float = 16.0 * scale
+	var slot_width: float = (area_width - min_sep * (count - 1)) / max(count, 1)
+	var max_width: float = SLOT_MAX_WIDTH * scale
+	var min_width: float = SLOT_MIN_WIDTH * scale
+	slot_width = clamp(slot_width, min_width, max_width)
+	var slot_height: float = slot_width * 1.3
+	return Vector2(slot_width, slot_height)
+
+func _calculate_separation(viewport_width: float, left: float, right: float, count: int, slot_width: float, scale: float, margin: float) -> float:
+	if count <= 1:
+		return 0.0
+	var area_width: float = max(0.0, viewport_width * (right - left) - margin * 2.0)
+	var remaining: float = area_width - (slot_width * count)
+	var min_sep: float = 10.0 * scale
+	return clamp(remaining / float(count - 1), min_sep, 80.0 * scale)
+
+func _update_character_slot_sizes(scale: float, player_slot_size: Vector2, enemy_slot_size: Vector2) -> void:
+	if player_slots_container:
+		for child in player_slots_container.get_children():
+			if child is Control:
+				child.custom_minimum_size = player_slot_size
+	if enemy_slots_container:
+		for child in enemy_slots_container.get_children():
+			if child is Control:
+				child.custom_minimum_size = enemy_slot_size
+
+func _update_hand_layout(viewport_size: Vector2, scale: float) -> void:
+	if not hand_container:
+		return
+
+	hand_container.position = Vector2(viewport_size.x * 0.5, viewport_size.y * HAND_Y_RATIO)
+	var base_radius := 150.0 * scale
+	hand_container.hand_radius = clamp(base_radius, 120.0, 240.0)
+	hand_container.base_y_position = 0.0
+	if hand_container.get_child_count() > 0:
+		hand_container.call_deferred("_arrange_cards_in_hemisphere")
+
+func _update_combat_log_layout(viewport_size: Vector2, scale: float) -> void:
+	if not combat_log_panel:
+		return
+	combat_log_panel.custom_minimum_size = Vector2(viewport_size.x * 0.6, viewport_size.y * 0.6)
 
 func _setup_modals() -> void:
 	"""Configura los modales usando las escenas separadas"""
@@ -273,7 +398,8 @@ func _create_missing_nodes() -> void:
 		print("DEBUG: Creando HandContainer automáticamente...")
 		var new_hand_container = preload("res://scripts/HandContainer.gd").new()
 		new_hand_container.name = "HandContainer"
-		new_hand_container.position = Vector2(960, 700)  # Posición visible
+		var viewport_size := get_viewport().get_visible_rect().size
+		new_hand_container.position = Vector2(viewport_size.x * 0.5, viewport_size.y * HAND_Y_RATIO)
 		add_child(new_hand_container)
 		hand_container = new_hand_container
 		print("DEBUG: HandContainer creado en posición global: ", hand_container.global_position)
@@ -286,7 +412,7 @@ func _create_missing_nodes() -> void:
 		print("DEBUG: Creando PlayerChars container automáticamente...")
 		var new_player_container = HBoxContainer.new()
 		new_player_container.name = "PlayerChars"
-		new_player_container.position = Vector2(100, 400)
+		_apply_container_area(new_player_container, PLAYER_AREA_LEFT, CHARACTER_AREA_TOP, PLAYER_AREA_RIGHT, CHARACTER_AREA_BOTTOM, 12.0)
 		add_child(new_player_container)
 		player_slots_container = new_player_container
 		print("DEBUG: PlayerChars container creado")
@@ -295,7 +421,7 @@ func _create_missing_nodes() -> void:
 		print("DEBUG: Creando EnemyChars container automáticamente...")
 		var new_enemy_container = HBoxContainer.new()
 		new_enemy_container.name = "EnemyChars"
-		new_enemy_container.position = Vector2(100, 200)
+		_apply_container_area(new_enemy_container, ENEMY_AREA_LEFT, CHARACTER_AREA_TOP, ENEMY_AREA_RIGHT, CHARACTER_AREA_BOTTOM, 12.0)
 		add_child(new_enemy_container)
 		enemy_slots_container = new_enemy_container
 		print("DEBUG: EnemyChars container creado")
@@ -1007,6 +1133,10 @@ func _set_cards_interactive(interactive: bool) -> void:
 	if not interactive and hand_container:
 		hand_container.unfocus_card()
 
+func _set_control_panel_visibility(visible: bool) -> void:
+	if control_panel:
+		control_panel.visible = visible
+
 func set_game_over(player_defeated: bool) -> void:
 	"""Deshabilita toda la UI cuando el juego termina"""
 	print("💀 GAME OVER - Jugador derrotado: ", player_defeated)
@@ -1067,7 +1197,8 @@ func _create_card_modal(title: String, cards: Array) -> Control:
 	"""Crea un modal para mostrar cartas"""
 	var modal = Panel.new()
 	modal.name = "CardModal"
-	modal.custom_minimum_size = Vector2(800, 600)
+	var viewport_size := get_viewport().get_visible_rect().size
+	modal.custom_minimum_size = Vector2(viewport_size.x * 0.7, viewport_size.y * 0.7)
 	modal.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	
 	# Crear StyleBox para el fondo del modal
@@ -1225,11 +1356,13 @@ func _on_modal_background_clicked(event: InputEvent) -> void:
 func show_deck_modal() -> void:
 	"""Muestra el modal con las cartas del mazo usando el nuevo DeckModal"""
 	print("📚 Abriendo modal del mazo...")
+	_set_control_panel_visibility(false)
 	
 	# Obtener cartas del mazo desde Game.gd
 	var game_node = get_parent()
 	if not game_node or not game_node.has_method("get_deck_cards"):
 		print("❌ No se puede acceder a las cartas del mazo")
+		_set_control_panel_visibility(true)
 		return
 	
 	var deck_cards = game_node.get_deck_cards()
@@ -1239,19 +1372,23 @@ func show_deck_modal() -> void:
 		deck_modal.show_modal(deck_cards)
 	else:
 		print("❌ DeckModal no está disponible")
+		_set_control_panel_visibility(true)
 
 func show_discard_modal() -> void:
 	"""Muestra el modal con las cartas de descarte usando el nuevo DiscardModal"""
 	print("🗑️ Abriendo modal de descarte...")
+	_set_control_panel_visibility(false)
 	
 	# Obtener cartas de descarte desde Game.gd
 	var game_node = get_parent()
 	if not game_node:
 		print("❌ game_node es null!")
+		_set_control_panel_visibility(true)
 		return
 	
 	if not game_node.has_method("get_discard_cards"):
 		print("❌ game_node no tiene método get_discard_cards")
+		_set_control_panel_visibility(true)
 		return
 	
 	var discard_cards = game_node.get_discard_cards()
@@ -1262,6 +1399,7 @@ func show_discard_modal() -> void:
 		discard_modal.show_modal(discard_cards)
 	else:
 		print("❌ DiscardModal no está disponible")
+		_set_control_panel_visibility(true)
 
 func show_menu_modal() -> void:
 	"""Muestra el modal de configuración del menú"""
@@ -1275,11 +1413,11 @@ func show_menu_modal() -> void:
 	
 	# Crear panel central
 	var panel = Panel.new()
-	panel.custom_minimum_size = Vector2(400, 300)
-	panel.position = Vector2(
-		(get_viewport().get_visible_rect().size.x - 400) / 2,
-		(get_viewport().get_visible_rect().size.y - 300) / 2
-	)
+	var viewport_size := get_viewport().get_visible_rect().size
+	var panel_size := Vector2(viewport_size.x * 0.35, viewport_size.y * 0.35)
+	panel.custom_minimum_size = panel_size
+	panel.size = panel_size
+	panel.position = (viewport_size - panel_size) / 2.0
 	
 	# Estilo del panel
 	var panel_style = StyleBoxFlat.new()
@@ -2052,6 +2190,8 @@ func _initialize_character_slots(container: HBoxContainer, slots_array: Array, c
 		slot_instance.visible = false
 		print("DEBUG: Slot ", i, " añadido al contenedor y array")
 
+	_update_character_slot_sizes(last_layout_scale, last_player_slot_size, last_enemy_slot_size)
+
 # --- FUNCIONES DE UI DISPLAY ---
 func set_turn(turn_num: int):
 	"""Actualiza el display del turno"""
@@ -2111,10 +2251,12 @@ func _update_all_status_effects(slots: Array) -> void:
 func _on_deck_modal_closed() -> void:
 	"""Callback cuando se cierra el modal del mazo"""
 	print("📚 Modal del mazo cerrado")
+	_set_control_panel_visibility(true)
 
 func _on_discard_modal_closed() -> void:
 	"""Callback cuando se cierra el modal de descarte"""
 	print("🗑️ Modal de descarte cerrado")
+	_set_control_panel_visibility(true)
 
 func _on_discard_card_selected(card_data) -> void:
 	"""Callback cuando se selecciona una carta del descarte para recuperar"""

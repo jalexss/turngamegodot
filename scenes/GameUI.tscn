@@ -14,30 +14,50 @@ grow_vertical = 2
 script = ExtResource("1_7qg0v")
 
 [node name="PlayerChars" type="HBoxContainer" parent="."]
-custom_minimum_size = Vector2(600, 250)
-layout_mode = 0
-offset_left = 100.0
-offset_top = 275.0
-offset_right = 700.0
-offset_bottom = 525.0
-theme_override_constants/separation = 200
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 1
+anchor_left = 0.05
+anchor_top = 0.25
+anchor_right = 0.48
+anchor_bottom = 0.55
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 160
+alignment = 1
 
 [node name="EnemyChars" type="HBoxContainer" parent="."]
-custom_minimum_size = Vector2(600, 250)
-layout_mode = 0
-offset_left = 1200.0
-offset_top = 275.0
-offset_right = 1800.0
-offset_bottom = 525.0
-theme_override_constants/separation = 200
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 1
+anchor_left = 0.52
+anchor_top = 0.25
+anchor_right = 0.95
+anchor_bottom = 0.55
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 160
+alignment = 1
 
 [node name="MainVBox" type="VBoxContainer" parent="."]
-custom_minimum_size = Vector2(1000, 0)
-layout_mode = 0
-offset_left = 28.0
-offset_top = 680.0
-offset_right = 1739.0
-offset_bottom = 753.0
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 1
+anchor_left = 0.05
+anchor_top = 0.65
+anchor_right = 0.95
+anchor_bottom = 0.92
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MainVBox"]
 custom_minimum_size = Vector2(100, 25)

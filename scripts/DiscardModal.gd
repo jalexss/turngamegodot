@@ -28,6 +28,11 @@ func _ready() -> void:
 	# Inicialmente oculto
 	visible = false
 
+	_apply_responsive_layout()
+	var viewport := get_viewport()
+	if viewport and not viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.connect(_on_viewport_size_changed)
+
 func show_modal(cards: Array) -> void:
 	"""Muestra el modal con las cartas del descarte"""
 	print("🗑️ Mostrando modal del descarte con ", cards.size(), " cartas")
@@ -38,6 +43,8 @@ func show_modal(cards: Array) -> void:
 	
 	# Mostrar modal
 	visible = true
+	_apply_responsive_layout()
+	call_deferred("_update_grid_columns")
 	
 	# Traer al frente
 	z_index = 100
@@ -75,7 +82,7 @@ func _clear_grid() -> void:
 func _create_card_panel(card_data, index: int) -> Panel:
 	"""Crea un panel visual para una carta del descarte"""
 	var card_panel = Panel.new()
-	card_panel.custom_minimum_size = Vector2(150, 200)
+	card_panel.custom_minimum_size = Vector2(140, 190) * _get_layout_scale()
 	
 	# Estilo del panel (más rojizo para descarte)
 	var card_style = StyleBoxFlat.new()
@@ -187,3 +194,26 @@ func _input(event: InputEvent) -> void:
 		if event.keycode == KEY_ESCAPE:
 			print("🗑️ ESC presionado - cerrando modal")
 			hide_modal()
+
+func _on_viewport_size_changed() -> void:
+	_apply_responsive_layout()
+	call_deferred("_update_grid_columns")
+
+func _apply_responsive_layout() -> void:
+	# Scale is already applied via custom_minimum_size calculations
+	pass
+
+func _get_layout_scale() -> float:
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var scale: float = min(viewport_size.x / 1920.0, viewport_size.y / 1080.0)
+	return clamp(scale, 0.7, 1.5)
+
+func _update_grid_columns() -> void:
+	if not grid_container or not modal_panel:
+		return
+	var panel_width: float = modal_panel.size.x
+	if panel_width <= 0.0:
+		panel_width = get_viewport().get_visible_rect().size.x * 0.8
+	var card_width: float = 160.0 * _get_layout_scale()
+	var columns: int = int(floor(panel_width / max(card_width, 1.0)))
+	grid_container.columns = int(clamp(columns, 2, 6))
