@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://c0fcddqxpq3ch5p"]
+
+[node name="FloatingDamageText" type="Label"]
+offset_left = -50.0
+offset_top = -30.0
+offset_right = 50.0
+offset_bottom = 30.0
+text = "100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LabelSettings" type="Resource" parent="."]
+script = SubResource("LabelSettings_kp7mr")
+
+[sub_resource type="LabelSettings" id="LabelSettings_kp7mr"]
+font_sizes/font_size = 48
+font_colors/font_color = Color(1, 0, 0, 1)
+outline_size = 3

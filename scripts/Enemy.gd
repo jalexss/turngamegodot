@@ -250,10 +250,20 @@ func _execute_defend_action(action: Dictionary, enemy) -> void:
 # --- APLICACIÓN DE EFECTOS ---
 func _apply_damage_to_character(character, damage: int) -> void:
 	"""Aplica daño a un personaje"""
+	var old_hp = character.hp
 	var actual_damage = max(0, damage - character.defense)
 	character.hp = max(0, character.hp - actual_damage)
 	
 	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
+	
+	# Emitir información para floating text
+	if ui_node and ui_node.has_method("spawn_damage_text"):
+		var modifier_type = ""
+		if actual_damage == 0:
+			# Mostrar que fue bloqueado sin mostrar cantidad
+			ui_node.spawn_floating_text_special(character, "shield_blocked", "")
+		else:
+			ui_node.spawn_damage_text(character, actual_damage, "damage", modifier_type)
 	
 	# Actualizar UI
 	if ui_node and ui_node.has_method("_update_character_display"):
@@ -270,6 +280,10 @@ func _apply_heal_to_character(character, heal: int) -> void:
 	var actual_heal = character.hp - old_hp
 	
 	print("💚 ", character.name, " se cura ", actual_heal, " HP → HP: ", character.hp, "/", character.max_hp)
+	
+	# Emitir información para floating text
+	if ui_node and ui_node.has_method("spawn_damage_text"):
+		ui_node.spawn_damage_text(character, actual_heal, "heal", "")
 	
 	# Actualizar UI
 	if ui_node and ui_node.has_method("_update_character_display"):

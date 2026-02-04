@@ -21,6 +21,9 @@ const DiscardModalScene = preload("res://scenes/DiscardModal.tscn")
 var topbar: Control = null
 var control_panel: Control = null
 
+# --- FLOATING TEXT ---
+var floating_text_manager: FloatingTextManager = null
+
 # --- MODALES ---
 var deck_modal: Control = null
 var discard_modal: Control = null
@@ -85,6 +88,13 @@ func _ready() -> void:
 	
 	# Crear pantalla de game over
 	_create_game_over_overlay()
+	
+	# Crear floating text manager
+	floating_text_manager = FloatingTextManager.new()
+	add_child(floating_text_manager)
+	
+	# Conectar señales del EffectManager después de que el juego esté listo
+	call_deferred("_connect_effect_manager_signals")
 	
 	# Crear nodos faltantes automáticamente
 	_create_missing_nodes()
@@ -992,6 +1002,9 @@ func _apply_pressure_damage_to_character(character: CharacterData) -> void:
 	character.hp = max(0, character.hp - damage)
 	var actual_damage = old_hp - character.hp
 	
+	# Mostrar floating text
+	spawn_damage_text(character, actual_damage, "damage", "pressure")
+	
 	# Log del ataque
 	var damage_text = "💀 " + character.name + " recibe " + str(actual_damage) + " de daño de presión"
 	damage_text += " (" + str(int(damage_percentage * 100)) + "% HP máximo)"
@@ -1882,6 +1895,12 @@ func _apply_damage(character: CharacterData, damage: int) -> void:
 	print("  - HP perdido: ", hp_lost)
 	print("  - HP final: ", character.hp, "/", character.max_hp)
 	
+	# Mostrar floating text
+	if actual_damage > 0:
+		spawn_damage_text(character, actual_damage, "damage", "")
+	else:
+		spawn_floating_text_special(character, "shield_blocked", "")
+	
 	# Agregar al log de combate
 	if actual_damage > 0:
 		var damage_text = "💥 " + character.name + " recibe " + str(actual_damage) + " de daño"
@@ -1920,6 +1939,10 @@ func _apply_heal(character: CharacterData, heal: int) -> void:
 		print("  - Sobrecuración (desperdiciada): ", overheal)
 	print("  - HP final: ", character.hp, "/", character.max_hp)
 	
+	# Mostrar floating text
+	if actual_heal > 0:
+		spawn_damage_text(character, actual_heal, "heal", "")
+	
 	# Agregar al log de combate
 	if actual_heal > 0:
 		add_combat_log_entry("💚 " + character.name + " se cura " + str(actual_heal) + " HP → HP: " + str(character.hp) + "/" + str(character.max_hp))
@@ -1931,6 +1954,10 @@ func _apply_heal(character: CharacterData, heal: int) -> void:
 func _apply_shield(character: CharacterData, shield: int) -> void:
 	"""Aplica escudo a un personaje (por ahora solo aumenta defensa temporalmente)"""
 	character.defense += shield
+	
+	# Mostrar floating text para escudo
+	spawn_damage_text(character, shield, "shield", "")
+	
 	add_combat_log_entry("🛡️ " + character.name + " gana " + str(shield) + " de escudo (Defensa: " + str(character.defense) + ")")
 	print("🛡️ ", character.name, " gana ", shield, " de escudo (Defensa: ", character.defense, ")")
 
@@ -2272,6 +2299,121 @@ func _update_all_status_effects(slots: Array) -> void:
 	for slot in slots:
 		if slot.visible and slot.has_method("update_status_effects"):
 			slot.update_status_effects()
+
+# --- FLOATING TEXT SYSTEM ---
+
+func spawn_damage_text(character: CharacterData, amount: int, text_type: String = "damage", modifier_type: String = "") -> void:
+	"""Spawns floating damage/heal text from character position"""
+	print("🎯 spawn_damage_text called: ", character.name, " | amount: ", amount, " | type: ", text_type)
+	
+	if not floating_text_manager:
+		print("❌ floating_text_manager is null!")
+		return
+	
+	if amount < 0:
+		print("⚠️ amount < 0, skipping")
+		return
+	
+	# Encontrar el nodo del slot del personaje
+	var from_position = Vector2.ZERO
+	var target_position = Vector2(get_viewport_rect().size.x / 2, 100)  # TopBar area
+	
+	# Buscar en slots del jugador
+	for i in range(player_slots_nodes.size()):
+		var slot = player_slots_nodes[i]
+		if slot and slot.character_data == character:
+			from_position = slot.global_position + Vector2(slot.size.x / 2, slot.size.y / 2)
+			print("✅ Found character in player slot ", i)
+			break
+	
+	# Buscar en slots del enemigo si no se encontró
+	if from_position == Vector2.ZERO:
+		for i in range(enemy_slots_nodes.size()):
+			var slot = enemy_slots_nodes[i]
+			if slot and slot.character_data == character:
+				from_position = slot.global_position + Vector2(slot.size.x / 2, slot.size.y / 2)
+				print("✅ Found character in enemy slot ", i)
+				break
+	
+	# Si aún no encontramos, usar posición del viewport center
+	if from_position == Vector2.ZERO:
+		from_position = get_viewport_rect().get_center()
+		print("⚠️ Character not found in slots, using viewport center")
+	
+	print("📍 Spawning text from ", from_position, " to ", target_position)
+	floating_text_manager.spawn_floating_text(from_position, target_position, amount, text_type, modifier_type)
+
+func spawn_floating_text_special(character: CharacterData, modifier_type: String, text_override: String = "") -> void:
+	"""Spawns special floating text (shield blocked, etc) without amount"""
+	print("🎯 spawn_floating_text_special called: ", character.name, " | modifier: ", modifier_type)
+	
+	if not floating_text_manager:
+		print("❌ floating_text_manager is null!")
+		return
+	
+	# Encontrar el nodo del slot del personaje
+	var from_position = Vector2.ZERO
+	var target_position = Vector2(get_viewport_rect().size.x / 2, 100)  # TopBar area
+	
+	# Buscar en slots del jugador
+	for i in range(player_slots_nodes.size()):
+		var slot = player_slots_nodes[i]
+		if slot and slot.character_data == character:
+			from_position = slot.global_position + Vector2(slot.size.x / 2, slot.size.y / 2)
+			break
+	
+	# Buscar en slots del enemigo si no se encontró
+	if from_position == Vector2.ZERO:
+		for i in range(enemy_slots_nodes.size()):
+			var slot = enemy_slots_nodes[i]
+			if slot and slot.character_data == character:
+				from_position = slot.global_position + Vector2(slot.size.x / 2, slot.size.y / 2)
+				break
+	
+	# Si aún no encontramos, usar posición del viewport center
+	if from_position == Vector2.ZERO:
+		from_position = get_viewport_rect().get_center()
+	
+	floating_text_manager.spawn_floating_text(from_position, target_position, 0, "damage", modifier_type)
+
+func _connect_effect_manager_signals() -> void:
+	"""Conecta las señales del EffectManager para mostrar floating text de efectos"""
+	var game_node = get_parent()
+	if not game_node:
+		print("⚠️ No se pudo encontrar el nodo padre (Game)")
+		return
+	
+	var effect_manager = game_node.get_node_or_null("EffectManager")
+	if not effect_manager:
+		print("⚠️ No se pudo encontrar EffectManager")
+		return
+	
+	if effect_manager.has_signal("effect_triggered"):
+		effect_manager.effect_triggered.connect(_on_effect_triggered)
+		print("✅ Conectado a señal effect_triggered del EffectManager")
+	else:
+		print("⚠️ EffectManager no tiene la señal effect_triggered")
+
+func _on_effect_triggered(character: CharacterData, effect: StatusEffect, value: int) -> void:
+	"""Callback cuando se dispara un efecto de estado"""
+	if value <= 0:
+		return
+	
+	var text_type = "damage"
+	var modifier_type = ""
+	
+	# Determinar el tipo de efecto
+	match effect.effect_type:
+		StatusEffect.EffectType.POISON:
+			text_type = "damage"
+			modifier_type = "poison"
+		StatusEffect.EffectType.REGENERATION:
+			text_type = "heal"
+			modifier_type = "regeneration"
+		_:
+			return
+	
+	spawn_damage_text(character, value, text_type, modifier_type)
 
 # --- CALLBACKS DE MODALES ---
 
