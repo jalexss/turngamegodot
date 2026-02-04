@@ -365,7 +365,8 @@ func _setup_modals() -> void:
 	# Instanciar DeckModal
 	deck_modal = DeckModalScene.instantiate()
 	deck_modal.name = "DeckModal"
-	deck_modal.z_index = 200  # Por encima de todo
+	deck_modal.z_index = 1500  # Por encima de todo incluyendo cartas
+	deck_modal.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(deck_modal)
 	
 	# Conectar señales del DeckModal
@@ -375,7 +376,8 @@ func _setup_modals() -> void:
 	# Instanciar DiscardModal
 	discard_modal = DiscardModalScene.instantiate()
 	discard_modal.name = "DiscardModal"
-	discard_modal.z_index = 200  # Por encima de todo
+	discard_modal.z_index = 1500  # Por encima de todo incluyendo cartas
+	discard_modal.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(discard_modal)
 	
 	# Conectar señales del DiscardModal
@@ -437,7 +439,8 @@ func _create_combat_log_panel() -> void:
 	combat_log_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	combat_log_panel.custom_minimum_size = Vector2(800, 400)
 	combat_log_panel.visible = false
-	combat_log_panel.z_index = 100  # Por encima de todo
+	combat_log_panel.z_index = 1500  # Por encima de todo incluyendo cartas
+	combat_log_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Estilo del panel de log
 	var log_panel_style = StyleBoxFlat.new()
@@ -554,8 +557,8 @@ func _input(event: InputEvent) -> void:
 			hide_game_over()
 			return
 	
-	# No procesar input de cartas si no son interactivas o si hay game over
-	if not cards_interactive or game_over_active:
+	# No procesar input de cartas si no son interactivas, hay game over, o hay modales abiertos
+	if not cards_interactive or game_over_active or _is_any_modal_open():
 		return
 	
 	if event is InputEventMouseMotion:
@@ -832,6 +835,8 @@ func show_combat_log() -> void:
 	if combat_log_panel:
 		combat_log_panel.visible = true
 		combat_log_visible = true
+		_set_cards_interactive(false)
+		_set_control_panel_visibility(false)
 		
 		# Hacer scroll hacia abajo para mostrar las entradas más recientes
 		if combat_log_scroll:
@@ -845,6 +850,8 @@ func hide_combat_log() -> void:
 	if combat_log_panel:
 		combat_log_panel.visible = false
 		combat_log_visible = false
+		_set_cards_interactive(true)
+		_set_control_panel_visibility(true)
 		print("📜 Log de combate ocultado")
 
 func add_combat_log_entry(message: String) -> void:
@@ -1137,6 +1144,18 @@ func _set_control_panel_visibility(visible: bool) -> void:
 	if control_panel:
 		control_panel.visible = visible
 
+func _is_any_modal_open() -> bool:
+	"""Verifica si hay algún modal abierto"""
+	if deck_modal and deck_modal.visible:
+		return true
+	if discard_modal and discard_modal.visible:
+		return true
+	if get_node_or_null("MenuModal"):
+		return true
+	if combat_log_panel and combat_log_panel.visible:
+		return true
+	return false
+
 func set_game_over(player_defeated: bool) -> void:
 	"""Deshabilita toda la UI cuando el juego termina"""
 	print("💀 GAME OVER - Jugador derrotado: ", player_defeated)
@@ -1357,6 +1376,7 @@ func show_deck_modal() -> void:
 	"""Muestra el modal con las cartas del mazo usando el nuevo DeckModal"""
 	print("📚 Abriendo modal del mazo...")
 	_set_control_panel_visibility(false)
+	_set_cards_interactive(false)
 	
 	# Obtener cartas del mazo desde Game.gd
 	var game_node = get_parent()
@@ -1378,6 +1398,7 @@ func show_discard_modal() -> void:
 	"""Muestra el modal con las cartas de descarte usando el nuevo DiscardModal"""
 	print("🗑️ Abriendo modal de descarte...")
 	_set_control_panel_visibility(false)
+	_set_cards_interactive(false)
 	
 	# Obtener cartas de descarte desde Game.gd
 	var game_node = get_parent()
@@ -1404,12 +1425,16 @@ func show_discard_modal() -> void:
 func show_menu_modal() -> void:
 	"""Muestra el modal de configuración del menú"""
 	print("☰ Abriendo modal de menú...")
+	_set_cards_interactive(false)
+	_set_control_panel_visibility(false)
 	
 	# Crear el modal principal
 	var modal = ColorRect.new()
 	modal.name = "MenuModal"
 	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	modal.color = Color(0, 0, 0, 0.7)  # Fondo semi-transparente
+	modal.z_index = 1500
+	modal.mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Crear panel central
 	var panel = Panel.new()
@@ -1543,6 +1568,8 @@ func show_menu_modal() -> void:
 	
 	close_button.pressed.connect(func(): 
 		print("✕ Cerrando modal de menú")
+		_set_cards_interactive(true)
+		_set_control_panel_visibility(true)
 		modal.queue_free()
 	)
 	
@@ -2251,11 +2278,15 @@ func _update_all_status_effects(slots: Array) -> void:
 func _on_deck_modal_closed() -> void:
 	"""Callback cuando se cierra el modal del mazo"""
 	print("📚 Modal del mazo cerrado")
+	_set_cards_interactive(true)
+	_set_control_panel_visibility(true)
 	_set_control_panel_visibility(true)
 
 func _on_discard_modal_closed() -> void:
 	"""Callback cuando se cierra el modal de descarte"""
 	print("🗑️ Modal de descarte cerrado")
+	_set_cards_interactive(true)
+	_set_control_panel_visibility(true)
 	_set_control_panel_visibility(true)
 
 func _on_discard_card_selected(card_data) -> void:

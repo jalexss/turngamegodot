@@ -137,7 +137,8 @@ func _arrange_cards_in_hemisphere() -> void:
 		
 		# Z-index realista: cartas de izquierda a derecha se superponen naturalmente
 		# La carta más a la izquierda (índice 0) está abajo, la más a la derecha (último índice) está arriba
-		var original_z = 100 + i
+		# Mantener rango bajo (0-100) para que siempre esté debajo de modales (1500)
+		var original_z: int = i
 		card.z_index = original_z
 		card_original_z_indices[card] = original_z  # Guardar z-index original
 		
@@ -219,8 +220,8 @@ func focus_card(card: Node2D) -> void:
 	focus_tween.tween_property(card, "rotation", focus_rotation, 0.4)
 	focus_tween.tween_property(card, "modulate", Color(1.15, 1.15, 1.05), 0.4)  # Más brillo
 	
-	# Traer al frente
-	card.z_index = 1000
+	# Traer al frente (pero mantener debajo de modales que usan 1500)
+	card.z_index = 100
 	
 	# Opcional: Añadir un efecto de sombra/glow sutil
 	# (Esto se podría implementar más adelante con un shader o nodo adicional)
@@ -261,8 +262,8 @@ func apply_hover_effect(card: Node2D, is_hovered: bool) -> void:
 	var original_z = card_original_z_indices.get(card, card.z_index)
 	
 	if is_hovered:
-		# Elevar temporalmente por encima de todas las cartas
-		var hover_z = 500  # Z-index temporal para hover
+		# Elevar temporalmente por encima de todas las cartas (pero debajo de modales)
+		var hover_z: int = 50  # Z-index temporal para hover, mantener debajo de modales (1500)
 		var hover_scale = original_scale * 1.1
 		
 		var tween = create_tween().set_parallel()
