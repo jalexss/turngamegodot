@@ -9,7 +9,8 @@
     "attack": 5,
     "defense": 4,
     "rate": 1,
-    "role": "HEALER"
+    "role": "HEALER",
+    "is_enemy": false
   },
   {
     "id": 2,
@@ -21,7 +22,8 @@
     "attack": 3,
     "defense": 8,
     "rate": 1,
-    "role": "TANK"
+    "role": "TANK",
+    "is_enemy": false
   },
   {
     "id": 3,
@@ -33,6 +35,7 @@
     "attack": 9,
     "defense": 6,
     "rate": 2,
-    "role": "CARRY"
+    "role": "CARRY",
+    "is_enemy": false
   }
 ]

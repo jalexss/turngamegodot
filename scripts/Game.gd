@@ -9,6 +9,7 @@ const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 # Opciones de deck para el jugador
 @export_enum("Automático", "Balanceado", "Agresivo", "Defensivo", "Inicial") var player_deck_type: int = 0
 @export var testing_deck_id: int = -1  # si > 0 fuerza ese deck en vez de random
+@export var use_external_rosters: bool = false  # Si true, usa rosters de GameManager
 
 # --- NODOS ---
 @onready var deck = $Deck
@@ -35,8 +36,20 @@ func _ready() -> void:
 	# Cargar definiciones de personajes
 	char_defs  = _load_char_defs("res://data/characters.json")
 	enemy_defs = _load_char_defs("res://data/enemys.json")
-	player_chars = _generate_roster(char_defs, 1, 3)
-	enemy_chars  = _generate_roster(enemy_defs, 1, 5)
+	
+	# Verificar si estamos en modo roguelike con rosters externos
+	if _should_use_external_rosters():
+		var gm = _get_game_manager()
+		player_chars = gm.get_player_roster()
+		enemy_chars = gm.get_enemy_roster()
+		print("🎮 Usando rosters externos de GameManager")
+		print("  - Jugadores: ", player_chars.size())
+		print("  - Enemigos: ", enemy_chars.size())
+	else:
+		# Modo testing: generar rosters aleatorios
+		player_chars = _generate_roster(char_defs, 1, 3)
+		enemy_chars  = _generate_roster(enemy_defs, 1, 5)
+		print("🧪 Modo testing: Rosters generados aleatoriamente")
 
 	# Configurar managers
 	if enemy_manager:
@@ -86,7 +99,27 @@ func _create_missing_managers() -> void:
 		new_enemy.name = "Enemy"
 		add_child(new_enemy)
 		enemy_manager = new_enemy
+
+func _should_use_external_rosters() -> bool:
+	"""Verifica si debemos usar rosters externos de GameManager"""
+	if use_external_rosters:
+		return true
 	
+	# Auto-detectar si GameManager existe y tiene rosters
+	var gm = _get_game_manager()
+	if gm and gm.is_roguelike_mode():
+		var player_roster = gm.get_player_roster()
+		var enemy_roster = gm.get_enemy_roster()
+		if not player_roster.is_empty() and not enemy_roster.is_empty():
+			return true
+	
+	return false
+
+func _get_game_manager():
+	"""Obtiene referencia segura al GameManager"""
+	return get_node_or_null("/root/GameManager")
+	
+func _create_effect_manager() -> void:
 	if not effect_manager:
 		print("DEBUG: Creando EffectManager...")
 		var new_effect_manager = EffectManagerClass.new()
@@ -505,10 +538,16 @@ func _end_game(result: String) -> void:
 		var victory = (result == "VICTORIA")
 		ui.show_game_over(victory)
 	
-	# Aquí puedes agregar lógica adicional como:
-	# - Guardar estadísticas
-	# - Reiniciar el juego
-	# - etc.
+	# Notificar a GameManager si estamos en modo roguelike
+	var gm = _get_game_manager()
+	if _should_use_external_rosters() and gm:
+		if result == "VICTORIA":
+			# Esperar un momento para que se vea la UI de victoria
+			await get_tree().create_timer(2.0).timeout
+			gm.on_battle_victory()
+		elif result == "DERROTA":
+			await get_tree().create_timer(2.0).timeout
+			gm.on_battle_defeat()
 
 # --- TARGETING SYSTEM ---
 func _on_character_targeted(char_data: CharacterData) -> void:

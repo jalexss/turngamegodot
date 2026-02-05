@@ -28,6 +28,11 @@ func start_turn() -> void:
 	"""Inicia el turno del jugador"""
 	print("🎮 Iniciando turno del jugador")
 	
+	# Asegurar que ui_node está disponible
+	if not ui_node:
+		ui_node = game_node.get_node("GameUI") if game_node else null
+		print("🔍 ui_node re-inicializado: ", ui_node)
+	
 	# Regenerar energía (respeta energía de testing)
 	if energy < max_energy:
 		energy = max_energy
@@ -40,7 +45,10 @@ func start_turn() -> void:
 	# Verificar si hay cartas pendientes antes de robar
 	print("🃏 Mano actual: ", hand_cards.size(), " cartas")
 	
-	if _has_pending_cards():
+	var has_pending = _has_pending_cards()
+	print("🔍 ¿Hay cartas pendientes?: ", has_pending)
+	
+	if has_pending:
 		print("⚠️ HAY CARTAS PENDIENTES - No se robarán cartas nuevas")
 		print("📥 Usa el botón de overflow para añadir las cartas pendientes primero")
 		
@@ -263,10 +271,18 @@ func get_discard_pile() -> Array:
 
 func _has_pending_cards() -> bool:
 	"""Verifica si hay cartas pendientes en overflow"""
-	if ui_node and ui_node.has_method("get_pending_cards_count"):
-		var pending_count = ui_node.get_pending_cards_count()
-		print("🔍 Cartas pendientes en UI: ", pending_count)
-		return pending_count > 0
+	if not ui_node:
+		ui_node = game_node.get_node("GameUI") if game_node else null
+		print("🔍 ui_node re-obtenido en _has_pending_cards: ", ui_node)
 	
-	print("⚠️ No se pudo verificar cartas pendientes")
-	return false
+	if not ui_node:
+		print("❌ ui_node es null en _has_pending_cards!")
+		return false
+	
+	if not ui_node.has_method("get_pending_cards_count"):
+		print("❌ GameUI no tiene método get_pending_cards_count!")
+		return false
+	
+	var pending_count = ui_node.get_pending_cards_count()
+	print("🔍 Cartas pendientes en UI: ", pending_count)
+	return pending_count > 0

@@ -1,0 +1,61 @@
+{
+  "common_encounters": [
+    {
+      "id": 1,
+      "name": "Encuentro Básico",
+      "enemies": [1],
+      "difficulty": 1
+    },
+    {
+      "id": 2,
+      "name": "Patrulla Doble",
+      "enemies": [1, 4],
+      "difficulty": 2
+    },
+    {
+      "id": 3,
+      "name": "Guardia Solitario",
+      "enemies": [4],
+      "difficulty": 1
+    }
+  ],
+  "epic_encounters": [
+    {
+      "id": 10,
+      "name": "Élite Solitario",
+      "enemies": [2],
+      "difficulty": 3
+    },
+    {
+      "id": 11,
+      "name": "Escuadrón Mixto",
+      "enemies": [1, 2, 4],
+      "difficulty": 4
+    },
+    {
+      "id": 12,
+      "name": "Doble Amenaza",
+      "enemies": [2, 5],
+      "difficulty": 4
+    }
+  ],
+  "boss_encounters": [
+    {
+      "id": 100,
+      "name": "El Jefe Final",
+      "enemies": [3],
+      "difficulty": 5
+    },
+    {
+      "id": 101,
+      "name": "Boss con Guardias",
+      "enemies": [3, 1, 1],
+      "difficulty": 6
+    }
+  ],
+  "enemy_pools": {
+    "common": [1, 4],
+    "epic": [2, 5],
+    "boss": [3]
+  }
+}
