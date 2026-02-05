@@ -542,12 +542,58 @@ func _end_game(result: String) -> void:
 	var gm = _get_game_manager()
 	if _should_use_external_rosters() and gm:
 		if result == "VICTORIA":
+			# Mostrar recompensa de oro brevemente
+			var gold_reward = _calculate_gold_reward()
+			if gold_reward > 0:
+				_show_gold_reward(gold_reward)
+				await get_tree().create_timer(1.5).timeout
+			
 			# Esperar un momento para que se vea la UI de victoria
-			await get_tree().create_timer(2.0).timeout
+			await get_tree().create_timer(1.5).timeout
 			gm.on_battle_victory()
 		elif result == "DERROTA":
 			await get_tree().create_timer(2.0).timeout
 			gm.on_battle_defeat()
+
+func _calculate_gold_reward() -> int:
+	"""Calcula la recompensa de oro basada en el tipo de combate"""
+	var gm = _get_game_manager()
+	if not gm:
+		return 0
+	
+	var node = gm.get_current_node()
+	var difficulty = node.get("difficulty", "common")
+	
+	match difficulty:
+		"common":
+			return randi_range(20, 40)
+		"epic":
+			return randi_range(35, 55)
+		"boss":
+			return randi_range(50, 70)
+		_:
+			return randi_range(20, 40)
+
+func _show_gold_reward(amount: int) -> void:
+	"""Muestra un mensaje de recompensa de oro en pantalla"""
+	var reward_label = Label.new()
+	reward_label.text = "💰 +%d oro" % amount
+	reward_label.add_theme_font_size_override("font_size", 36)
+	reward_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+	reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	
+	# Posicionar en el centro de la pantalla
+	reward_label.set_anchors_preset(Control.PRESET_CENTER)
+	reward_label.position = Vector2(-100, -50)
+	
+	add_child(reward_label)
+	
+	# Animación simple de fade out
+	var tween = create_tween()
+	tween.tween_property(reward_label, "position:y", reward_label.position.y - 50, 1.0)
+	tween.parallel().tween_property(reward_label, "modulate:a", 0.0, 1.0).set_delay(0.5)
+	tween.tween_callback(reward_label.queue_free)
 
 # --- TARGETING SYSTEM ---
 func _on_character_targeted(char_data: CharacterData) -> void:

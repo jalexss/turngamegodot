@@ -7,6 +7,10 @@ extends Control
 @onready var combat_log_button: Button = $Content/CombatLogButton
 @onready var menu_button: Button = $Content/MenuButton
 
+# Nodos dinámicos para oro y buffos
+var gold_label: Label = null
+var buffs_container: HBoxContainer = null
+
 # Variables de cronómetros
 var match_timer: float = 0.0
 var pressure_timer: float = 15.0
@@ -32,7 +36,139 @@ func _ready() -> void:
 	if menu_button:
 		menu_button.pressed.connect(_on_menu_button_pressed)
 	
+	# Crear elementos de oro y buffos si estamos en roguelike
+	_create_roguelike_ui()
+	_connect_game_manager_signals()
+	
 	print("✅ TopBar configurado correctamente")
+
+func _get_game_manager():
+	"""Obtiene referencia segura al GameManager"""
+	return get_node_or_null("/root/GameManager")
+
+func _create_roguelike_ui() -> void:
+	"""Crea elementos de UI específicos del roguelike (oro y buffos)"""
+	var gm = _get_game_manager()
+	if not gm or not gm.is_roguelike_mode():
+		return
+	
+	# Buscar o crear contenedor para elementos de roguelike
+	var content = get_node_or_null("Content")
+	if not content:
+		return
+	
+	# Crear separador
+	var sep = VSeparator.new()
+	sep.name = "RoguelikeSep"
+	content.add_child(sep)
+	content.move_child(sep, 2)  # Después de LeftSection
+	
+	# Crear label de oro
+	gold_label = Label.new()
+	gold_label.name = "GoldLabel"
+	gold_label.add_theme_font_size_override("font_size", 18)
+	gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+	gold_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	content.add_child(gold_label)
+	content.move_child(gold_label, 3)
+	
+	# Crear contenedor de buffos
+	buffs_container = HBoxContainer.new()
+	buffs_container.name = "BuffsContainer"
+	buffs_container.add_theme_constant_override("separation", 8)
+	buffs_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	content.add_child(buffs_container)
+	content.move_child(buffs_container, 4)
+	
+	# Actualizar displays iniciales
+	_update_gold_display()
+	_update_buffs_display()
+
+func _connect_game_manager_signals() -> void:
+	"""Conecta señales del GameManager"""
+	var gm = _get_game_manager()
+	if not gm:
+		return
+	
+	if gm.has_signal("gold_changed") and not gm.gold_changed.is_connected(_on_gold_changed):
+		gm.gold_changed.connect(_on_gold_changed)
+	
+	if gm.has_signal("buffs_changed") and not gm.buffs_changed.is_connected(_on_buffs_changed):
+		gm.buffs_changed.connect(_on_buffs_changed)
+
+func _on_gold_changed(_new_gold: int) -> void:
+	_update_gold_display()
+
+func _on_buffs_changed() -> void:
+	_update_buffs_display()
+
+func _update_gold_display() -> void:
+	"""Actualiza el display de oro"""
+	if not gold_label:
+		return
+	
+	var gm = _get_game_manager()
+	if gm:
+		gold_label.text = "🪙 %d" % gm.get_gold()
+
+func _update_buffs_display() -> void:
+	"""Actualiza el display compacto de buffos"""
+	if not buffs_container:
+		return
+	
+	# Limpiar
+	for child in buffs_container.get_children():
+		child.queue_free()
+	
+	var gm = _get_game_manager()
+	if not gm:
+		return
+	
+	var buffs = gm.get_run_buffs()
+	if buffs.is_empty():
+		return
+	
+	# Mostrar icono indicador de buffos activos
+	var buff_indicator = Label.new()
+	buff_indicator.text = "✨%d" % buffs.size()
+	buff_indicator.add_theme_font_size_override("font_size", 14)
+	buff_indicator.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
+	buff_indicator.tooltip_text = _get_buffs_tooltip(buffs)
+	buffs_container.add_child(buff_indicator)
+
+func _get_buffs_tooltip(buffs: Array) -> String:
+	"""Genera tooltip con resumen de buffos"""
+	var lines = ["=== Mejoras Activas ==="]
+	
+	var buffs_by_char = {}
+	for buff in buffs:
+		var char_name = buff.get("character_name", "???")
+		if not buffs_by_char.has(char_name):
+			buffs_by_char[char_name] = []
+		buffs_by_char[char_name].append(buff)
+	
+	for char_name in buffs_by_char.keys():
+		var char_buffs = buffs_by_char[char_name]
+		var summary = _get_buff_summary_for_tooltip(char_buffs)
+		lines.append("%s: %s" % [char_name, summary])
+	
+	return "\n".join(lines)
+
+func _get_buff_summary_for_tooltip(buffs: Array) -> String:
+	"""Genera resumen de buffos para tooltip"""
+	var parts = []
+	for buff in buffs:
+		var stat = buff.get("buff_type", "")
+		var value = buff.get("value", 0)
+		var icon = ""
+		match stat:
+			"attack": icon = "⚔️"
+			"defense": icon = "🛡️"
+			"max_hp": icon = "❤️"
+			"rate": icon = "⚡"
+		if icon != "":
+			parts.append("+%d%s" % [value, icon])
+	return " ".join(parts)
 
 func _process(delta: float) -> void:
 	"""Actualiza los cronómetros cada frame"""

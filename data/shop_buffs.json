@@ -1,0 +1,112 @@
+{
+	"buffs": [
+		{
+			"id": 1,
+			"name": "Espada Afilada",
+			"description": "+5 de Ataque",
+			"stat": "attack",
+			"value": 5,
+			"cost": 50,
+			"icon": "⚔️"
+		},
+		{
+			"id": 2,
+			"name": "Escudo Reforzado",
+			"description": "+5 de Defensa",
+			"stat": "defense",
+			"value": 5,
+			"cost": 50,
+			"icon": "🛡️"
+		},
+		{
+			"id": 3,
+			"name": "Corazón de Hierro",
+			"description": "+15 HP Máximo",
+			"stat": "max_hp",
+			"value": 15,
+			"cost": 60,
+			"icon": "❤️"
+		},
+		{
+			"id": 4,
+			"name": "Botas de Velocidad",
+			"description": "+2 de Velocidad",
+			"stat": "rate",
+			"value": 2,
+			"cost": 45,
+			"icon": "⚡"
+		},
+		{
+			"id": 5,
+			"name": "Guantes de Fuerza",
+			"description": "+8 de Ataque",
+			"stat": "attack",
+			"value": 8,
+			"cost": 75,
+			"icon": "🥊"
+		},
+		{
+			"id": 6,
+			"name": "Armadura Pesada",
+			"description": "+8 de Defensa",
+			"stat": "defense",
+			"value": 8,
+			"cost": 75,
+			"icon": "🔰"
+		},
+		{
+			"id": 7,
+			"name": "Elixir de Vida",
+			"description": "+25 HP Máximo",
+			"stat": "max_hp",
+			"value": 25,
+			"cost": 90,
+			"icon": "💖"
+		},
+		{
+			"id": 8,
+			"name": "Alas Ligeras",
+			"description": "+3 de Velocidad",
+			"stat": "rate",
+			"value": 3,
+			"cost": 65,
+			"icon": "🦅"
+		},
+		{
+			"id": 9,
+			"name": "Daga Venenosa",
+			"description": "+3 de Ataque",
+			"stat": "attack",
+			"value": 3,
+			"cost": 35,
+			"icon": "🗡️"
+		},
+		{
+			"id": 10,
+			"name": "Casco de Bronce",
+			"description": "+3 de Defensa",
+			"stat": "defense",
+			"value": 3,
+			"cost": 35,
+			"icon": "⛑️"
+		},
+		{
+			"id": 11,
+			"name": "Tónico Vital",
+			"description": "+10 HP Máximo",
+			"stat": "max_hp",
+			"value": 10,
+			"cost": 40,
+			"icon": "🧪"
+		},
+		{
+			"id": 12,
+			"name": "Amuleto Ágil",
+			"description": "+1 de Velocidad",
+			"stat": "rate",
+			"value": 1,
+			"cost": 30,
+			"icon": "📿"
+		}
+	]
+}
