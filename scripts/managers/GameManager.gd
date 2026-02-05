@@ -141,6 +141,8 @@ func create_character_data(char_def: Dictionary) -> Resource:
 	char_data.defense = char_def.get("defense", 5)
 	char_data.rate = char_def.get("rate", 1)
 	char_data.role = char_def.get("role", "")
+	char_data.deck_id = char_def.get("deck_id", 1)
+	char_data.range = char_def.get("range", "common")
 	
 	var portrait_path = char_def.get("portrait", "")
 	char_data.sprite_path = portrait_path

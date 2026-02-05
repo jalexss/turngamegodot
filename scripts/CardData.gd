@@ -61,6 +61,10 @@ enum Rarity {
 @export var max_uses_per_turn: int = -1            # Usos máximos por turno (-1 = ilimitado)
 @export var cooldown: int = 0                       # Turnos de cooldown
 
+# --- DEPENDENCIA DE PERSONAJE ---
+@export var required_character_id: int = -1         # ID del personaje requerido (-1 = cualquiera)
+@export var required_character_role: String = ""    # Rol requerido ("HEALER", "TANK", "CARRY", "" = cualquiera)
+
 # --- CONDICIONES ---
 @export var conditions: Array[Dictionary] = []      # Condiciones para usar la carta
 @export var combo_cards: Array[int] = []           # IDs de cartas que hacen combo
@@ -119,6 +123,41 @@ func can_be_played_on(target_character: CharacterData, is_ally: bool) -> bool:
 			return false
 	
 	return true
+
+func requires_specific_character() -> bool:
+	"""Retorna si la carta requiere un personaje específico vivo"""
+	return required_character_id >= 0 or required_character_role != ""
+
+func can_be_played_by_team(player_characters: Array) -> bool:
+	"""Verifica si la carta puede jugarse según los personajes vivos del equipo"""
+	# Si no requiere personaje específico, siempre se puede jugar
+	if not requires_specific_character():
+		return true
+	
+	# Verificar si hay al menos un personaje vivo que cumpla los requisitos
+	for character in player_characters:
+		if character.hp <= 0:
+			continue  # Ignorar personajes muertos
+		
+		# Verificar por ID específico
+		if required_character_id >= 0:
+			if character.id == required_character_id:
+				return true
+		
+		# Verificar por rol
+		if required_character_role != "":
+			if character.role == required_character_role:
+				return true
+	
+	return false
+
+func get_required_character_info() -> String:
+	"""Retorna información legible sobre el personaje requerido"""
+	if required_character_id >= 0:
+		return "Requiere personaje ID: " + str(required_character_id)
+	if required_character_role != "":
+		return "Requiere rol: " + required_character_role
+	return "Sin requisitos especiales"
 
 func _check_condition(condition: Dictionary, target: CharacterData) -> bool:
 	"""Verifica una condición específica"""

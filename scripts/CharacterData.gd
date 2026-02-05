@@ -12,6 +12,8 @@ class_name CharacterData
 @export var defense: int = 0     # mitigación de daño
 @export var rate: int = 1        # Velocidad o prioridad
 @export var role: String = ""    # Rol del personaje (HEALER, TANK, etc.)
+@export var deck_id: int = 1     # ID del deck de cartas para enemigos
+@export var range: String = "common"  # Rango del enemigo: common, epic, boss
 
 # Stats base (antes de buffos permanentes)
 var base_attack: int = 0

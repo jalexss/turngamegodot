@@ -198,6 +198,51 @@ func get_status_effects_text() -> String:
 	
 	return effects_text
 
+func get_buff_icons_compact() -> String:
+	"""Retorna los iconos de buffos en formato compacto"""
+	if active_effects.is_empty():
+		return ""
+	
+	var buffs_line = ""
+	var debuffs_line = ""
+	
+	for effect in active_effects:
+		if not effect:
+			continue
+		
+		var icon_with_duration = effect.icon + str(effect.duration)
+		
+		# Separar buffos de debuffs
+		if _is_debuff(effect):
+			debuffs_line += icon_with_duration + " "
+		else:
+			buffs_line += icon_with_duration + " "
+	
+	var result = ""
+	if buffs_line != "":
+		result += "✨" + buffs_line.strip_edges()
+	if debuffs_line != "":
+		if result != "":
+			result += "\n"
+		result += "⚠️" + debuffs_line.strip_edges()
+	
+	return result
+
+func _is_debuff(effect) -> bool:
+	"""Determina si un efecto es negativo (debuff)"""
+	if not effect:
+		return false
+	
+	match effect.effect_type:
+		StatusEffect.EffectType.DEBUFF_ATTACK, StatusEffect.EffectType.DEBUFF_DEFENSE, \
+		StatusEffect.EffectType.DEBUFF_HP, StatusEffect.EffectType.STUN, \
+		StatusEffect.EffectType.POISON, StatusEffect.EffectType.VULNERABILITY, \
+		StatusEffect.EffectType.WEAKNESS, StatusEffect.EffectType.ENERGY_DRAIN, \
+		StatusEffect.EffectType.CARD_BLOCK, StatusEffect.EffectType.HEAL_BLOCK:
+			return true
+		_:
+			return false
+
 func _update_action_display() -> void:
 	"""Actualiza la visualización de las acciones pendientes y efectos de estado"""
 	if not character_data:
@@ -218,18 +263,25 @@ func _update_action_display() -> void:
 				action_str = "💚 " + str(action.value)
 			"DEFEND":
 				action_str = "🛡️ " + str(action.value)
+			"DEBUFF":
+				action_str = "⬇️ " + str(action.value)
 			_:
 				action_str = action.type + " " + str(action.value)
 		
 		action_text += action_str
 		if i < action_previews.size() - 1:
-			action_text += "\n"
+			action_text += " "
 	
-	# Construir texto de efectos de estado
-	var effects_text = get_status_effects_text()
+	# Construir texto de efectos de estado (formato compacto)
+	var effects_text = get_buff_icons_compact()
 	
 	# Combinar nombre, acciones y efectos
 	var display_text = character_data.name
+	
+	# Mostrar stats de defensa temporal si hay efectos activos
+	var defense_bonus = _get_defense_bonus_from_effects()
+	if defense_bonus > 0:
+		display_text += " [🛡️+" + str(defense_bonus) + "]"
 	
 	if action_text != "":
 		display_text += "\n" + action_text
@@ -239,4 +291,39 @@ func _update_action_display() -> void:
 	
 	name_label.text = display_text
 	
+	# Cambiar color si tiene debuffs activos
+	_update_name_color()
+	
 	print("🎯 Actualizado display para ", character_data.name, " con ", action_previews.size(), " acciones y ", active_effects.size(), " efectos")
+
+func _get_defense_bonus_from_effects() -> int:
+	"""Calcula el bonus de defensa de efectos activos"""
+	var bonus = 0
+	for effect in active_effects:
+		if effect and effect.effect_type == StatusEffect.EffectType.BUFF_DEFENSE:
+			bonus += effect.value
+	return bonus
+
+func _update_name_color() -> void:
+	"""Actualiza el color del nombre según el estado del personaje"""
+	if is_dead:
+		name_label.modulate = Color.RED
+		return
+	
+	var has_buffs = false
+	var has_debuffs = false
+	
+	for effect in active_effects:
+		if _is_debuff(effect):
+			has_debuffs = true
+		else:
+			has_buffs = true
+	
+	if has_debuffs and has_buffs:
+		name_label.modulate = Color.YELLOW  # Mezcla
+	elif has_debuffs:
+		name_label.modulate = Color(1.0, 0.6, 0.6)  # Rojizo para debuffs
+	elif has_buffs:
+		name_label.modulate = Color(0.6, 1.0, 0.6)  # Verdoso para buffs
+	else:
+		name_label.modulate = Color.WHITE

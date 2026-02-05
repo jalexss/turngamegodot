@@ -24,6 +24,7 @@ enum EffectType {
 	IMMUNITY,         # Inmune a efectos
 	DOUBLE_DAMAGE,    # Próximo ataque hace doble daño
 	HEAL_BLOCK,       # No puede curarse
+	SPEED_BOOST,      # Aplica cartas múltiples veces (stack máximo 2 = 3 veces)
 	CUSTOM            # Efecto personalizado con función
 }
 
@@ -136,6 +137,12 @@ func _setup_effect_data():
 			description = "No puede curarse"
 			icon = "🚫"
 			stackable = false
+		
+		EffectType.SPEED_BOOST:
+			name = "Velocidad"
+			description = "Las cartas se aplican múltiples veces"
+			icon = "🚀"
+			stackable = true  # Puede stackear hasta máx 2 (3 aplicaciones total)
 
 func get_display_text() -> String:
 	"""Retorna texto para mostrar en UI"""

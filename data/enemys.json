@@ -25,7 +25,7 @@
     "defense": 1,
     "rate": 1,
     "role": "TANK",
-    "deck_id": 1,
+    "deck_id": 2,
     "range": "epic",
     "is_enemy": true
   },
@@ -40,7 +40,7 @@
     "defense": 0,
     "rate": 2,
     "role": "CARRY",
-    "deck_id": 1,
+    "deck_id": 3,
     "range": "boss",
     "is_enemy": true
   },
@@ -70,7 +70,7 @@
     "defense": 1,
     "rate": 1,
     "role": "TANK",
-    "deck_id": 1,
+    "deck_id": 2,
     "range": "epic",
     "is_enemy": true
   }

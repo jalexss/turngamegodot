@@ -113,6 +113,25 @@
 	"tags": ["heal", "magic", "draw", "starter"]
   },
   {
+	"id": 8,
+	"name": "Aceleración",
+	"cost": 1,
+	"description": "Tus cartas se aplican 2 veces este turno.",
+	"artwork": "",
+	"background": "",
+	"card_type": "BUFF",
+	"rarity": "UNCOMMON",
+	"power": 0,
+	"can_target_enemies": false,
+	"can_target_allies": true,
+	"can_target_self": true,
+	"effects": [
+	  { "type": "SPEED_BOOST", "value": 1, "duration": 1 }
+	],
+	"available_to": ["player"],
+	"tags": ["buff", "speed", "starter"]
+  },
+  {
 	"id": 1001,
 	"name": "Maldición Debilitante",
 	"cost": 2,

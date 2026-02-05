@@ -1,0 +1,223 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-02-05",
+  "description": "Guía completa del sistema de combate para referencia futura",
+
+  "damage_calculation": {
+    "formula": "actual_damage = max(0, damage_base - total_defense)",
+    "total_defense_formula": "character.defense + sum(BUFF_DEFENSE effects)",
+    "notes": [
+      "El daño base viene de la carta o acción del enemigo",
+      "La defensa se calcula usando stats base + efectos temporales de StatusEffect",
+      "Si el daño después de defensa es 0 o menor, se muestra 'bloqueado'",
+      "El ataque del personaje se suma al daño de las cartas de ataque"
+    ],
+    "min_damage": 0,
+    "max_damage": "Sin límite (depende de la carta y buffs activos)"
+  },
+
+  "heal_calculation": {
+    "formula": "actual_heal = min(max_hp - current_hp, heal_value)",
+    "notes": [
+      "La curación no puede exceder el HP máximo",
+      "Si el personaje tiene HEAL_BLOCK activo, la curación es 0",
+      "La sobrecuración se desperdicia"
+    ],
+    "min_heal": 0,
+    "max_heal": "Limitado por HP máximo del personaje"
+  },
+
+  "defense_system": {
+    "permanent_defense": {
+      "description": "Defensa base del personaje + buffos de tienda/nodos",
+      "source": "character.defense + permanent_buffs",
+      "duration": "Permanente durante toda la run"
+    },
+    "temporary_defense": {
+      "description": "Escudos de combate aplicados por cartas o acciones",
+      "source": "StatusEffect de tipo BUFF_DEFENSE",
+      "duration": "1-4 turnos según la carta, se reduce al final del turno",
+      "stacking": {
+        "type": "duration",
+        "description": "Si se usa la misma carta, se stackea la duración, no el valor",
+        "max_stacks": "Sin límite de duración"
+      }
+    }
+  },
+
+  "buff_debuff_system": {
+    "combat_buffs": {
+      "description": "Buffos temporales que duran turnos específicos",
+      "managed_by": "EffectManager.gd via StatusEffect",
+      "types": [
+        {"type": "BUFF_ATTACK", "icon": "⚔️", "description": "+X ataque temporal", "stackable": true},
+        {"type": "DEBUFF_ATTACK", "icon": "🔻", "description": "-X ataque temporal", "stackable": true},
+        {"type": "BUFF_DEFENSE", "icon": "🛡️", "description": "+X defensa temporal", "stackable": true},
+        {"type": "DEBUFF_DEFENSE", "icon": "💔", "description": "-X defensa temporal", "stackable": true},
+        {"type": "STUN", "icon": "😵", "description": "No puede actuar", "stackable": false},
+        {"type": "POISON", "icon": "☠️", "description": "X daño por turno", "stackable": true},
+        {"type": "REGENERATION", "icon": "💚", "description": "X curación por turno", "stackable": true},
+        {"type": "VULNERABILITY", "icon": "🎯", "description": "Recibe más daño", "stackable": false},
+        {"type": "WEAKNESS", "icon": "😴", "description": "Hace menos daño", "stackable": false},
+        {"type": "DOUBLE_DAMAGE", "icon": "⚡", "description": "Próximo ataque hace 2x daño", "stackable": false},
+        {"type": "HEAL_BLOCK", "icon": "🚫", "description": "No puede curarse", "stackable": false},
+        {"type": "SPEED_BOOST", "icon": "🚀", "description": "Cartas se aplican múltiples veces", "stackable": true, "max_stacks": 2}
+      ],
+      "turn_processing": {
+        "turn_start": ["POISON aplica daño", "REGENERATION aplica curación"],
+        "turn_end": ["Reducir duración de todos los efectos", "Remover efectos con duración 0"]
+      }
+    },
+    "permanent_buffs": {
+      "description": "Buffos de tienda y nodos que duran toda la run",
+      "managed_by": "GameManager.run_buffs y CharacterData.permanent_buffs",
+      "types": [
+        {"stat": "attack", "description": "+X ataque permanente"},
+        {"stat": "defense", "description": "+X defensa permanente"},
+        {"stat": "max_hp", "description": "+X HP máximo permanente"},
+        {"stat": "speed_boost", "description": "Cartas se aplican 2x (único, máx 1 compra)"}
+      ]
+    },
+    "buff_sharing": {
+      "is_shared": false,
+      "description": "Los buffos son INDIVIDUALES por personaje. Cada personaje tiene sus propios efectos de estado.",
+      "verification": "apply_buff_to_character() recibe character_id específico"
+    }
+  },
+
+  "speed_boost_system": {
+    "description": "Sistema que permite aplicar cartas múltiples veces",
+    "how_it_works": [
+      "Cada stack de SPEED_BOOST añade 1 aplicación extra",
+      "Base: 1 aplicación, máximo: 3 aplicaciones (2 stacks)",
+      "Se aplica a TODOS los efectos de la carta (daño, curación, shields, etc.)"
+    ],
+    "sources": [
+      {"source": "Carta 'Aceleración' (ID 8)", "stacks": 1, "duration": "1 turno"},
+      {"source": "Shop 'Botas de Velocidad'", "stacks": 1, "duration": "permanente", "max_purchases": 1}
+    ],
+    "example": "Con 2 stacks: carta de 3 daño se aplica 3 veces = 9 daño total"
+  },
+
+  "card_system": {
+    "card_types": [
+      {"type": "ATTACK", "target": "enemies", "primary_effect": "DAMAGE"},
+      {"type": "DEFENSE", "target": "allies", "primary_effect": "SHIELD"},
+      {"type": "HEAL", "target": "allies", "primary_effect": "HEAL"},
+      {"type": "BUFF", "target": "allies", "primary_effect": "Aumentar stats"},
+      {"type": "DEBUFF", "target": "enemies", "primary_effect": "Reducir stats"},
+      {"type": "STATUS", "target": "varies", "primary_effect": "Aplicar StatusEffect"},
+      {"type": "SPECIAL", "target": "varies", "primary_effect": "Efectos únicos"}
+    ],
+    "effect_durations": {
+      "default": 1,
+      "range": "1-4 turnos según la carta",
+      "specified_in": "effects[].duration o status_effects[].duration"
+    },
+    "character_dependency": {
+      "enabled": true,
+      "fields": ["required_character_id", "required_character_role"],
+      "behavior": "Si el personaje requerido está muerto, la carta no se puede jugar",
+      "validation": "CardData.can_be_played_by_team(player_characters)"
+    }
+  },
+
+  "turn_system": {
+    "phases": [
+      {"phase": "PLAYER", "description": "El jugador juega cartas manualmente"},
+      {"phase": "ENEMY", "description": "La IA ejecuta acciones generadas"}
+    ],
+    "turn_flow": [
+      "1. Inicio del turno del jugador",
+      "2. Procesar efectos de inicio de turno (poison, regen) para jugador",
+      "3. Jugador juega cartas usando energía",
+      "4. Jugador presiona 'Terminar Turno'",
+      "5. Procesar efectos de fin de turno para jugador",
+      "6. Inicio del turno enemigo",
+      "7. Procesar efectos de inicio de turno para enemigos",
+      "8. IA genera y ejecuta acciones basadas en decks",
+      "9. Procesar efectos de fin de turno para enemigos",
+      "10. Volver al paso 1"
+    ]
+  },
+
+  "enemy_ai": {
+    "action_generation": {
+      "system": "Basado en decks de cartas",
+      "files": ["enemys.json (deck_id)", "enemy_decks.json (cartas y pesos)"]
+    },
+    "actions_per_turn": {
+      "common": "1-2 acciones",
+      "epic": "2-3 acciones",
+      "boss": "2-4 acciones"
+    },
+    "card_selection": {
+      "method": "Weighted random",
+      "weights": "Definidos en enemy_decks.json[].cards[].weight"
+    },
+    "action_types": [
+      {"type": "ATTACK", "target": "PLAYER aleatorio vivo", "damage": "carta.power + enemy.attack"},
+      {"type": "HEAL", "target": "ENEMY herido o sí mismo", "heal": "carta.power"},
+      {"type": "DEFEND", "target": "Sí mismo", "shield": "carta.power (temporal 1 turno)"},
+      {"type": "DEBUFF", "target": "PLAYER aleatorio", "effect": "Según carta"}
+    ],
+    "action_combination": "Acciones similares del mismo enemigo se combinan en una sola"
+  },
+
+  "energy_system": {
+    "max_energy": 3,
+    "energy_per_turn": 3,
+    "card_cost_range": "0-5 (típicamente 1-3)"
+  },
+
+  "visual_indicators": {
+    "buff_display": {
+      "location": "Debajo del nombre del personaje",
+      "format": "✨icono+duración para buffs, ⚠️icono+duración para debuffs",
+      "colors": {
+        "has_buffs": "Verde claro",
+        "has_debuffs": "Rojo claro",
+        "both": "Amarillo",
+        "none": "Blanco",
+        "dead": "Rojo"
+      }
+    },
+    "defense_bonus": {
+      "format": "[🛡️+X] junto al nombre",
+      "shows": "Bonus de defensa temporal de efectos activos"
+    }
+  },
+
+  "game_over_conditions": {
+    "victory": "Todos los enemigos derrotados (HP = 0)",
+    "defeat": "Todos los personajes del jugador derrotados (HP = 0)"
+  },
+
+  "pressure_timer": {
+    "default_duration": 15,
+    "range": "15-30 segundos (configurable en menú)",
+    "effect": "Cuando llega a 0, todos los personajes del jugador reciben daño",
+    "damage_calculation": "5%-30% del HP máximo de cada personaje",
+    "ignores_defense": true
+  },
+
+  "files_reference": {
+    "core_scripts": [
+      {"file": "GameUI.gd", "purpose": "UI principal, aplicación de efectos de cartas"},
+      {"file": "Enemy.gd", "purpose": "IA enemiga, generación de acciones basada en decks"},
+      {"file": "EffectManager.gd", "purpose": "Gestión de StatusEffects temporales"},
+      {"file": "StatusEffect.gd", "purpose": "Definición de tipos de efectos y duración"},
+      {"file": "CardData.gd", "purpose": "Estructura de cartas y validaciones"},
+      {"file": "CharacterData.gd", "purpose": "Stats de personajes y buffos permanentes"},
+      {"file": "CharacterSlot.gd", "purpose": "Display visual de personajes y efectos"}
+    ],
+    "data_files": [
+      {"file": "cards.json", "purpose": "Definición de todas las cartas"},
+      {"file": "player_deck.json", "purpose": "Deck inicial del jugador"},
+      {"file": "enemy_decks.json", "purpose": "Decks de enemigos con pesos"},
+      {"file": "enemys.json", "purpose": "Definición de enemigos y su deck_id"},
+      {"file": "characters.json", "purpose": "Definición de personajes del jugador"},
+      {"file": "shop_buffs.json", "purpose": "Buffos permanentes de tienda"}
+    ]
+  }
+}

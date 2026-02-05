@@ -45,18 +45,6 @@ custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="TestButton" type="Button" parent="ButtonsContainer/TopRow"]
-custom_minimum_size = Vector2(140, 35)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_k6njy")
-text = "🧪 Añadir Carta (test)"
-
-[node name="EnergyButton" type="Button" parent="ButtonsContainer/TopRow"]
-custom_minimum_size = Vector2(140, 35)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_smcf5")
-text = "⚡ +3 Energía (test)"
-
 [node name="EndTurnButton" type="Button" parent="ButtonsContainer/TopRow"]
 custom_minimum_size = Vector2(140, 35)
 layout_mode = 2

@@ -9,6 +9,10 @@ var planned_actions: Array = []
 var game_node: Node = null
 var ui_node: Control = null
 
+# Sistema de decks de cartas para enemigos
+var enemy_decks: Dictionary = {}  # deck_id -> deck data
+var all_cards: Dictionary = {}    # card_id -> card data
+
 signal actions_generated(actions: Array)
 signal action_executed(action: Dictionary)
 signal turn_completed()
@@ -17,17 +21,55 @@ func _ready() -> void:
 	# Buscar referencias
 	game_node = get_parent()
 	ui_node = game_node.get_node("GameUI") if game_node else null
+	
+	# Cargar decks y cartas
+	_load_enemy_decks()
+	_load_cards()
+
+func _load_enemy_decks() -> void:
+	"""Carga los decks de enemigos desde JSON"""
+	var file = FileAccess.open("res://data/enemy_decks.json", FileAccess.READ)
+	if file:
+		var json = JSON.new()
+		var error = json.parse(file.get_as_text())
+		file.close()
+		if error == OK:
+			var decks_array = json.get_data()
+			for deck in decks_array:
+				enemy_decks[deck.id] = deck
+			print("📚 Decks de enemigos cargados: ", enemy_decks.size())
+		else:
+			print("❌ Error al parsear enemy_decks.json")
+	else:
+		print("❌ No se pudo abrir enemy_decks.json")
+
+func _load_cards() -> void:
+	"""Carga todas las cartas desde JSON"""
+	var file = FileAccess.open("res://data/cards.json", FileAccess.READ)
+	if file:
+		var json = JSON.new()
+		var error = json.parse(file.get_as_text())
+		file.close()
+		if error == OK:
+			var cards_array = json.get_data()
+			for card in cards_array:
+				all_cards[card.id] = card
+			print("🃏 Cartas cargadas para IA: ", all_cards.size())
+		else:
+			print("❌ Error al parsear cards.json")
+	else:
+		print("❌ No se pudo abrir cards.json")
 
 func set_enemy_characters(characters: Array) -> void:
 	"""Establece los personajes enemigos"""
 	enemy_characters = characters
 
-# --- GENERACIÓN DE ACCIONES ---
+# --- GENERACIÓN DE ACCIONES BASADA EN CARTAS ---
 func generate_actions() -> void:
-	"""Genera acciones aleatorias para todos los enemigos vivos"""
+	"""Genera acciones para todos los enemigos basándose en sus decks"""
 	planned_actions.clear()
 	
-	print("🤖 Generando acciones enemigas...")
+	print("🤖 Generando acciones enemigas basadas en decks...")
 	
 	var living_enemies = 0
 	var dead_enemies = 0
@@ -41,14 +83,17 @@ func generate_actions() -> void:
 		
 		living_enemies += 1
 		
-		# Generar 1-3 acciones por enemigo
-		var num_actions = randi_range(1, 3)
-		print("  - ", enemy.name, " generará ", num_actions, " acciones")
+		# Determinar número de acciones según el rango del enemigo
+		var num_actions = _get_actions_count_for_enemy(enemy)
+		var enemy_range = enemy.range if enemy.range != "" else "common"
+		print("  - ", enemy.name, " (", enemy_range, ") generará ", num_actions, " acciones")
 		
+		# Generar acciones basadas en el deck del enemigo
 		for j in range(num_actions):
-			var action = _generate_random_action(enemy, i)
-			planned_actions.append(action)
-			print("    → ", action.type, " ", action.value, " (Target: ", action.target_type, ")")
+			var action = _generate_card_based_action(enemy, i)
+			if action:
+				planned_actions.append(action)
+				print("    → ", action.type, " ", action.value, " (Target: ", action.target_type, ")")
 	
 	print("📊 Resumen: ", living_enemies, " enemigos vivos | ", dead_enemies, " enemigos muertos")
 	
@@ -60,8 +105,148 @@ func generate_actions() -> void:
 	
 	actions_generated.emit(planned_actions)
 
+func _get_actions_count_for_enemy(enemy) -> int:
+	"""Retorna el número de acciones según el rango del enemigo"""
+	var enemy_range = enemy.range if enemy.range != "" else "common"
+	match enemy_range:
+		"common":
+			return randi_range(1, 2)  # Comunes: 1-2 acciones
+		"epic":
+			return randi_range(2, 3)  # Épicos: 2-3 acciones
+		"boss":
+			return randi_range(2, 4)  # Bosses: 2-4 acciones
+		_:
+			return randi_range(1, 2)
+
+func _generate_card_based_action(enemy, enemy_index: int) -> Dictionary:
+	"""Genera una acción basada en el deck del enemigo"""
+	var deck_id = enemy.deck_id if enemy.deck_id > 0 else 1
+	var deck_data = enemy_decks.get(deck_id, null)
+	
+	# Si no hay deck válido, usar sistema aleatorio antiguo
+	if not deck_data or deck_data.get("cards", []).is_empty():
+		return _generate_random_action(enemy, enemy_index)
+	
+	# Seleccionar carta del deck basándose en peso
+	var selected_card_entry = _select_weighted_card(deck_data.get("cards", []))
+	if not selected_card_entry:
+		return _generate_random_action(enemy, enemy_index)
+	
+	var card_id = selected_card_entry.get("card_id", 0)
+	var action_type = selected_card_entry.get("action_type", "ATTACK")
+	var card_data = all_cards.get(card_id, null)
+	
+	var action = {
+		"enemy_index": enemy_index,
+		"enemy_name": enemy.name,
+		"type": action_type,
+		"value": 0,
+		"target_type": "",
+		"target_index": -1,
+		"card_id": card_id,
+		"card_name": card_data.name if card_data else "Unknown"
+	}
+	
+	# Calcular valor basado en la carta + stats del enemigo
+	match action_type:
+		"ATTACK":
+			var base_power = card_data.get("power", 3) if card_data else 3
+			# Añadir ataque del enemigo al daño base
+			action.value = base_power + enemy.attack
+			action.target_type = "PLAYER"
+			action.target_index = _get_random_alive_player_index()
+		
+		"HEAL":
+			var heal_value = card_data.get("power", 5) if card_data else 5
+			action.value = heal_value
+			action.target_type = "ENEMY"
+			action.target_index = _get_random_wounded_enemy_index(enemy_index)
+		
+		"DEFEND":
+			var shield_value = card_data.get("power", 4) if card_data else 4
+			action.value = shield_value
+			action.target_type = "ENEMY"
+			action.target_index = enemy_index
+		
+		"DEBUFF":
+			# Debuffs aplican efectos de estado al jugador
+			action.value = card_data.get("power", 2) if card_data else 2
+			action.target_type = "PLAYER"
+			action.target_index = _get_random_alive_player_index()
+	
+	return action
+
+func _select_weighted_card(cards: Array) -> Dictionary:
+	"""Selecciona una carta basándose en pesos, ajustando curaciones según el nodo actual"""
+	if cards.is_empty():
+		return {}
+	
+	# Obtener nodo actual para ajustar probabilidad de curación
+	var current_node = _get_current_node_index()
+	var heal_weight_modifier = _get_heal_weight_modifier(current_node)
+	
+	# Calcular pesos ajustados
+	var adjusted_cards = []
+	var total_weight = 0
+	
+	for card in cards:
+		var weight = card.get("weight", 1)
+		var action_type = card.get("action_type", "ATTACK")
+		
+		# Reducir peso de curaciones en primeros nodos
+		if action_type == "HEAL":
+			weight = int(weight * heal_weight_modifier)
+			if weight < 1:
+				weight = 0  # Eliminar curación completamente en nodos muy tempranos
+		
+		if weight > 0:
+			adjusted_cards.append({"card": card, "weight": weight})
+			total_weight += weight
+	
+	if adjusted_cards.is_empty():
+		return cards[0]  # Fallback
+	
+	var roll = randi() % total_weight
+	var current_weight = 0
+	
+	for entry in adjusted_cards:
+		current_weight += entry.weight
+		if roll < current_weight:
+			return entry.card
+	
+	return adjusted_cards[0].card
+
+func _get_current_node_index() -> int:
+	"""Obtiene el índice del nodo actual desde GameManager"""
+	if Engine.has_singleton("GameManager"):
+		return Engine.get_singleton("GameManager").get_current_node_index()
+	
+	# Buscar GameManager en el árbol
+	var root = get_tree().root if get_tree() else null
+	if root:
+		var gm = root.get_node_or_null("/root/GameManager")
+		if gm and gm.has_method("get_current_node_index"):
+			return gm.get_current_node_index()
+	return 0
+
+func _get_heal_weight_modifier(node_index: int) -> float:
+	"""Retorna un modificador para el peso de curación según el nodo
+	   Nodo 0-1: 0% curación (muy temprano)
+	   Nodo 2-3: 25% curación
+	   Nodo 4-5: 50% curación
+	   Nodo 6+: 100% curación (normal)
+	"""
+	if node_index <= 1:
+		return 0.0  # Sin curación en primeros 2 nodos
+	elif node_index <= 3:
+		return 0.25  # 25% de probabilidad normal
+	elif node_index <= 5:
+		return 0.5  # 50% de probabilidad normal
+	else:
+		return 1.0  # Probabilidad normal
+
 func _generate_random_action(enemy_character, enemy_index: int) -> Dictionary:
-	"""Genera una acción aleatoria para un enemigo"""
+	"""Genera una acción aleatoria para un enemigo (fallback)"""
 	var action_types = ["ATTACK", "HEAL", "DEFEND"]
 	var chosen_type = action_types[randi() % action_types.size()]
 	
@@ -249,9 +434,17 @@ func _execute_defend_action(action: Dictionary, enemy) -> void:
 
 # --- APLICACIÓN DE EFECTOS ---
 func _apply_damage_to_character(character, damage: int) -> void:
-	"""Aplica daño a un personaje"""
+	"""Aplica daño a un personaje usando defensa modificada por efectos"""
 	var old_hp = character.hp
-	var actual_damage = max(0, damage - character.defense)
+	
+	# Obtener defensa modificada por efectos de estado
+	var total_defense = character.defense
+	if game_node and game_node.has_method("get_effect_manager"):
+		var effect_manager = game_node.get_effect_manager()
+		if effect_manager:
+			total_defense = effect_manager.get_modified_defense(character)
+	
+	var actual_damage = max(0, damage - total_defense)
 	character.hp = max(0, character.hp - actual_damage)
 	
 	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
@@ -290,7 +483,19 @@ func _apply_heal_to_character(character, heal: int) -> void:
 		ui_node._update_character_display(character)
 
 func _apply_shield_to_character(character, shield: int) -> void:
-	"""Aplica escudo a un personaje"""
+	"""Aplica escudo temporal a un personaje usando el sistema StatusEffect"""
+	# Intentar usar el EffectManager para aplicar escudo temporal
+	if game_node and game_node.has_method("get_effect_manager"):
+		var effect_manager = game_node.get_effect_manager()
+		if effect_manager:
+			var shield_effect = StatusEffect.new(StatusEffect.EffectType.BUFF_DEFENSE, shield, 1)
+			shield_effect.stackable = true
+			shield_effect.source_name = "Enemy Action"
+			effect_manager.apply_effect(character, shield_effect)
+			print("🛡️ ", character.name, " gana ", shield, " de escudo temporal (1 turno)")
+			return
+	
+	# Fallback: aplicar al stat directamente
 	character.defense += shield
 	print("🛡️ ", character.name, " gana ", shield, " de escudo (Defensa: ", character.defense, ")")
 	

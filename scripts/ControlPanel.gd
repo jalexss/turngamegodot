@@ -1,16 +1,12 @@
 extends Control
 
 # Referencias a botones
-@onready var test_button: Button = $ButtonsContainer/TopRow/TestButton
-@onready var energy_button: Button = $ButtonsContainer/TopRow/EnergyButton
 @onready var end_turn_button: Button = $ButtonsContainer/TopRow/EndTurnButton
 @onready var deck_button: Button = $ButtonsContainer/BottomRow/DeckButton
 @onready var overflow_button: Button = $ButtonsContainer/BottomRow/OverflowButton
 @onready var discard_button: Button = $ButtonsContainer/BottomRow/DiscardButton
 
 # Señales para comunicarse con GameUI
-signal test_card_requested
-signal energy_boost_requested
 signal end_turn_requested
 signal deck_view_requested
 signal overflow_cards_requested
@@ -35,12 +31,6 @@ func _ready() -> void:
 
 func _connect_button_signals() -> void:
 	"""Conecta las señales de todos los botones"""
-	if test_button:
-		test_button.pressed.connect(_on_test_button_pressed)
-	
-	if energy_button:
-		energy_button.pressed.connect(_on_energy_button_pressed)
-	
 	if end_turn_button:
 		end_turn_button.pressed.connect(_on_end_turn_button_pressed)
 	
@@ -76,10 +66,6 @@ func update_discard_count(count: int) -> void:
 
 func set_buttons_enabled(enabled: bool) -> void:
 	"""Habilita/deshabilita todos los botones"""
-	if test_button:
-		test_button.disabled = not enabled
-	if energy_button:
-		energy_button.disabled = not enabled
 	if end_turn_button:
 		end_turn_button.disabled = not enabled
 	if deck_button:
@@ -95,13 +81,6 @@ func set_end_turn_enabled(enabled: bool) -> void:
 		end_turn_button.disabled = not enabled
 		end_turn_button.modulate = Color.WHITE if enabled else Color(0.5, 0.5, 0.5)
 
-func set_test_buttons_visible(show_buttons: bool) -> void:
-	"""Muestra/oculta los botones de prueba (test y energy)"""
-	if test_button:
-		test_button.visible = show_buttons
-	if energy_button:
-		energy_button.visible = show_buttons
-
 func _update_button_displays() -> void:
 	"""Actualiza todos los displays de botones"""
 	update_deck_count(deck_count)
@@ -109,16 +88,6 @@ func _update_button_displays() -> void:
 	update_discard_count(discard_count)
 
 # --- CALLBACKS DE BOTONES ---
-
-func _on_test_button_pressed() -> void:
-	"""Callback para el botón de test"""
-	print("🧪 ControlPanel: Botón de test presionado")
-	test_card_requested.emit()
-
-func _on_energy_button_pressed() -> void:
-	"""Callback para el botón de energía"""
-	print("⚡ ControlPanel: Botón de energía presionado")
-	energy_boost_requested.emit()
 
 func _on_end_turn_button_pressed() -> void:
 	"""Callback para el botón de terminar turno"""

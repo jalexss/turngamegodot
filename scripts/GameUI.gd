@@ -1618,8 +1618,11 @@ func _start_targeting(card: Node2D) -> void:
 	if not card or not card.data:
 		return
 	
-	# NO verificar energía aquí - solo permitir zoom y targeting
-	# La verificación de energía se hace al aplicar la carta
+	# Verificar dependencia carta-personaje antes de iniciar targeting
+	if not _can_play_card_with_team(card.data):
+		print("❌ No se puede jugar ", card.data.name, " - Personaje requerido no disponible")
+		add_combat_log_entry("❌ " + card.data.name + ": " + card.data.get_required_character_info())
+		return
 	
 	# Limpiar highlights previos antes de empezar
 	_clear_target_highlights()
@@ -1640,6 +1643,20 @@ func _start_targeting(card: Node2D) -> void:
 	
 	# Resaltar targets válidos
 	_highlight_valid_targets(valid_targets)
+
+func _can_play_card_with_team(card_data: CardData) -> bool:
+	"""Verifica si la carta puede jugarse con el equipo actual"""
+	# Si no requiere personaje específico, siempre se puede jugar
+	if not card_data.requires_specific_character():
+		return true
+	
+	# Obtener personajes del jugador
+	var game_node = get_parent()
+	if not game_node or not game_node.has_method("get_player_characters"):
+		return true  # Si no podemos verificar, permitir
+	
+	var player_chars = game_node.get_player_characters()
+	return card_data.can_be_played_by_team(player_chars)
 
 func _cancel_targeting() -> void:
 	"""Cancela el modo de targeting"""
@@ -1813,20 +1830,49 @@ func _on_character_targeted(character_data: CharacterData) -> void:
 
 # --- SISTEMA DE EFECTOS DE CARTAS ---
 func _apply_card_effects(card_data: CardData, target_character: CharacterData) -> void:
-	"""Aplica los efectos de una carta a un personaje"""
+	"""Aplica los efectos de una carta a un personaje (con multiplicador de velocidad)"""
 	print("🎴 Aplicando efectos de ", card_data.name, " a ", target_character.name)
-	print("🔍 DEBUG EFECTOS:")
-	print("  - Carta ID: ", card_data.id)
-	print("  - Power: ", card_data.power)
-	print("  - Effects array size: ", card_data.effects.size())
-	print("  - Status effects size: ", card_data.status_effects.size())
-	print("  - Effects content: ", card_data.effects)
 	
 	# Obtener referencia al EffectManager
 	var game_node = get_parent()
 	var effect_manager = null
 	if game_node and game_node.has_method("get_effect_manager"):
 		effect_manager = game_node.get_effect_manager()
+	
+	# Obtener multiplicador de velocidad (cuántas veces aplicar la carta)
+	var speed_multiplier = 1
+	if effect_manager:
+		# Obtener personajes del jugador para verificar velocidad
+		if game_node.has_method("get_player_characters"):
+			var player_chars = game_node.get_player_characters()
+			# Usar el primer personaje vivo como referencia para el buff de velocidad
+			for pc in player_chars:
+				if pc.hp > 0:
+					speed_multiplier = effect_manager.get_speed_multiplier(pc)
+					break
+	
+	print("🚀 Multiplicador de velocidad: ", speed_multiplier, "x")
+	
+	# Aplicar efectos múltiples veces según velocidad
+	for application in range(speed_multiplier):
+		if speed_multiplier > 1:
+			print("🚀 Aplicación ", application + 1, "/", speed_multiplier)
+			if application > 0:
+				add_combat_log_entry("🚀 ¡Velocidad! Aplicación extra #" + str(application + 1))
+		
+		_apply_card_effects_once(card_data, target_character, effect_manager)
+	
+	# Actualizar UI del personaje
+	_update_character_display(target_character)
+
+func _apply_card_effects_once(card_data: CardData, target_character: CharacterData, effect_manager) -> void:
+	"""Aplica los efectos de una carta una vez"""
+	print("🔍 DEBUG EFECTOS:")
+	print("  - Carta ID: ", card_data.id)
+	print("  - Power: ", card_data.power)
+	print("  - Effects array size: ", card_data.effects.size())
+	print("  - Status effects size: ", card_data.status_effects.size())
+	print("  - Effects content: ", card_data.effects)
 	
 	# Aplicar efectos de estado primero
 	if card_data.has_status_effects() and effect_manager:
@@ -1857,35 +1903,51 @@ func _apply_card_effects(card_data: CardData, target_character: CharacterData) -
 			var effect_value = effect.get("value", 0)
 			print("    - Tipo: ", effect_type, " Valor: ", effect_value)
 			
+				# Obtener duración del efecto (por defecto 1 turno)
+			var effect_duration = effect.get("duration", 1)
+			
 			match effect_type:
 				"DAMAGE":
 					_apply_damage(target_character, effect_value)
 				"HEAL":
 					_apply_heal(target_character, effect_value)
 				"SHIELD":
-					_apply_shield(target_character, effect_value)
+					_apply_shield(target_character, effect_value, effect_duration)
 				"BUFF":
-					_apply_buff(target_character, effect_value)
+					_apply_buff(target_character, effect_value, effect_duration)
 				"DEBUFF":
-					_apply_debuff(target_character, effect_value)
+					_apply_debuff(target_character, effect_value, effect_duration)
 				"APPLY_STATUS":
 					if effect_manager:
 						_apply_status_effect_from_effect(target_character, effect, effect_manager)
+				"SPEED_BOOST":
+					# Aplicar efecto de velocidad
+					if effect_manager:
+						effect_manager.apply_speed_effect(target_character, effect_duration)
 				_:
 					print("    ⚠️ Efecto desconocido: ", effect_type)
-	
-	# Actualizar UI del personaje
-	_update_character_display(target_character)
 
 func _apply_damage(character: CharacterData, damage: int) -> void:
-	"""Aplica daño a un personaje"""
+	"""Aplica daño a un personaje usando defensa modificada por efectos"""
 	print("🔍 DEBUG DAÑO:")
 	print("  - Personaje: ", character.name)
 	print("  - HP inicial: ", character.hp, "/", character.max_hp)
 	print("  - Daño base: ", damage)
-	print("  - Defensa: ", character.defense)
 	
-	var actual_damage = max(0, damage - character.defense)
+	# Obtener defensa modificada por efectos de estado
+	var game_node = get_parent()
+	var effect_manager = null
+	var total_defense = character.defense
+	
+	if game_node and game_node.has_method("get_effect_manager"):
+		effect_manager = game_node.get_effect_manager()
+		if effect_manager:
+			total_defense = effect_manager.get_modified_defense(character)
+	
+	print("  - Defensa base: ", character.defense)
+	print("  - Defensa modificada (con efectos): ", total_defense)
+	
+	var actual_damage = max(0, damage - total_defense)
 	print("  - Daño real (después de defensa): ", actual_damage)
 	
 	var old_hp = character.hp
@@ -1904,8 +1966,8 @@ func _apply_damage(character: CharacterData, damage: int) -> void:
 	# Agregar al log de combate
 	if actual_damage > 0:
 		var damage_text = "💥 " + character.name + " recibe " + str(actual_damage) + " de daño"
-		if character.defense > 0:
-			damage_text += " (" + str(damage) + " - " + str(character.defense) + " defensa)"
+		if total_defense > 0:
+			damage_text += " (" + str(damage) + " - " + str(total_defense) + " defensa)"
 		damage_text += " → HP: " + str(character.hp) + "/" + str(character.max_hp)
 		add_combat_log_entry(damage_text)
 	else:
@@ -1918,7 +1980,6 @@ func _apply_damage(character: CharacterData, damage: int) -> void:
 	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
 	
 	# Verificar game over después de aplicar daño
-	var game_node = get_parent()
 	if game_node and game_node.has_method("_check_game_over"):
 		game_node._check_game_over()
 
@@ -1951,25 +2012,74 @@ func _apply_heal(character: CharacterData, heal: int) -> void:
 	
 	print("💚 ", character.name, " se cura ", actual_heal, " HP → HP: ", character.hp, "/", character.max_hp)
 
-func _apply_shield(character: CharacterData, shield: int) -> void:
-	"""Aplica escudo a un personaje (por ahora solo aumenta defensa temporalmente)"""
-	character.defense += shield
+func _apply_shield(character: CharacterData, shield: int, duration: int = 1) -> void:
+	"""Aplica escudo temporal a un personaje usando el sistema StatusEffect"""
+	var game_node = get_parent()
+	var effect_manager = null
+	if game_node and game_node.has_method("get_effect_manager"):
+		effect_manager = game_node.get_effect_manager()
+	
+	if effect_manager:
+		# Crear efecto de escudo temporal
+		var shield_effect = StatusEffect.new(StatusEffect.EffectType.BUFF_DEFENSE, shield, duration)
+		shield_effect.stackable = true
+		shield_effect.source_name = "Combat Card"
+		effect_manager.apply_effect(character, shield_effect)
+		print("🛡️ ", character.name, " gana ", shield, " de escudo temporal por ", duration, " turno(s)")
+	else:
+		# Fallback si no hay effect manager
+		character.defense += shield
+		print("🛡️ ", character.name, " gana ", shield, " de escudo (sin EffectManager)")
 	
 	# Mostrar floating text para escudo
 	spawn_damage_text(character, shield, "shield", "")
 	
-	add_combat_log_entry("🛡️ " + character.name + " gana " + str(shield) + " de escudo (Defensa: " + str(character.defense) + ")")
-	print("🛡️ ", character.name, " gana ", shield, " de escudo (Defensa: ", character.defense, ")")
+	var duration_text = " por " + str(duration) + " turno(s)" if duration > 0 else ""
+	add_combat_log_entry("🛡️ " + character.name + " gana " + str(shield) + " de escudo" + duration_text)
 
-func _apply_buff(character: CharacterData, buff: int) -> void:
-	"""Aplica buff a un personaje"""
-	character.attack += buff
-	print("⬆️ ", character.name, " gana ", buff, " de ataque (Ataque: ", character.attack, ")")
+func _apply_buff(character: CharacterData, buff: int, duration: int = 1) -> void:
+	"""Aplica buff temporal de ataque a un personaje usando el sistema StatusEffect"""
+	var game_node = get_parent()
+	var effect_manager = null
+	if game_node and game_node.has_method("get_effect_manager"):
+		effect_manager = game_node.get_effect_manager()
+	
+	if effect_manager:
+		# Crear efecto de buff temporal
+		var buff_effect = StatusEffect.new(StatusEffect.EffectType.BUFF_ATTACK, buff, duration)
+		buff_effect.stackable = true
+		buff_effect.source_name = "Combat Card"
+		effect_manager.apply_effect(character, buff_effect)
+		print("⬆️ ", character.name, " gana ", buff, " de ataque temporal por ", duration, " turno(s)")
+	else:
+		# Fallback si no hay effect manager
+		character.attack += buff
+		print("⬆️ ", character.name, " gana ", buff, " de ataque (sin EffectManager)")
+	
+	var duration_text = " por " + str(duration) + " turno(s)" if duration > 0 else ""
+	add_combat_log_entry("⬆️ " + character.name + " gana " + str(buff) + " de ataque" + duration_text)
 
-func _apply_debuff(character: CharacterData, debuff: int) -> void:
-	"""Aplica debuff a un personaje"""
-	character.attack = max(0, character.attack - debuff)
-	print("⬇️ ", character.name, " pierde ", debuff, " de ataque (Ataque: ", character.attack, ")")
+func _apply_debuff(character: CharacterData, debuff: int, duration: int = 1) -> void:
+	"""Aplica debuff temporal de ataque a un personaje usando el sistema StatusEffect"""
+	var game_node = get_parent()
+	var effect_manager = null
+	if game_node and game_node.has_method("get_effect_manager"):
+		effect_manager = game_node.get_effect_manager()
+	
+	if effect_manager:
+		# Crear efecto de debuff temporal (valor negativo)
+		var debuff_effect = StatusEffect.new(StatusEffect.EffectType.DEBUFF_ATTACK, -debuff, duration)
+		debuff_effect.stackable = true
+		debuff_effect.source_name = "Combat Card"
+		effect_manager.apply_effect(character, debuff_effect)
+		print("⬇️ ", character.name, " pierde ", debuff, " de ataque temporal por ", duration, " turno(s)")
+	else:
+		# Fallback si no hay effect manager
+		character.attack = max(0, character.attack - debuff)
+		print("⬇️ ", character.name, " pierde ", debuff, " de ataque (sin EffectManager)")
+	
+	var duration_text = " por " + str(duration) + " turno(s)" if duration > 0 else ""
+	add_combat_log_entry("⬇️ " + character.name + " pierde " + str(debuff) + " de ataque" + duration_text)
 
 func _apply_status_effect(character: CharacterData, status_data: Dictionary, effect_manager: EffectManagerClass) -> void:
 	"""Aplica un efecto de estado desde los datos de la carta"""
@@ -2043,6 +2153,8 @@ func _string_to_status_effect_type(type_str: String) -> StatusEffect.EffectType:
 			return StatusEffect.EffectType.DOUBLE_DAMAGE
 		"HEAL_BLOCK":
 			return StatusEffect.EffectType.HEAL_BLOCK
+		"SPEED_BOOST":
+			return StatusEffect.EffectType.SPEED_BOOST
 		_:
 			print("⚠️ Tipo de efecto desconocido: ", type_str)
 			return StatusEffect.EffectType.BUFF_ATTACK  # Default

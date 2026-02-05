@@ -3,7 +3,7 @@ class_name Player
 
 # --- VARIABLES DEL JUGADOR ---
 var energy: int = 0
-var max_energy: int = 3
+var max_energy: int = 5
 var hand_cards: Array = []
 var max_hand_size: int = 8
 var discard_pile: Array = []

@@ -170,6 +170,40 @@ func can_heal(character: CharacterData) -> bool:
 	
 	return true
 
+func get_speed_multiplier(character: CharacterData) -> int:
+	"""Retorna cuántas veces se aplican las cartas (1 base + stacks de velocidad, máx 3)"""
+	var multiplier = 1  # Base: 1 aplicación
+	
+	if not active_effects.has(character):
+		return multiplier
+	
+	for effect in active_effects[character]:
+		if effect.effect_type == StatusEffect.EffectType.SPEED_BOOST:
+			multiplier += effect.value  # Cada stack añade aplicaciones
+	
+	# Máximo 3 aplicaciones (1 base + 2 stacks máximo)
+	return min(multiplier, 3)
+
+func apply_speed_effect(character: CharacterData, duration: int = 1) -> void:
+	"""Aplica efecto de velocidad a un personaje (máximo 2 stacks)"""
+	# Verificar cuántos stacks ya tiene
+	var current_stacks = 0
+	if active_effects.has(character):
+		for effect in active_effects[character]:
+			if effect.effect_type == StatusEffect.EffectType.SPEED_BOOST:
+				current_stacks += effect.value
+	
+	if current_stacks >= 2:
+		print("⚡ ", character.name, " ya tiene máximo de velocidad (2 stacks)")
+		return
+	
+	# Crear y aplicar efecto de velocidad
+	var speed_effect = StatusEffect.new(StatusEffect.EffectType.SPEED_BOOST, 1, duration)
+	speed_effect.stackable = true
+	speed_effect.source_name = "Speed Boost"
+	apply_effect(character, speed_effect)
+	print("🚀 ", character.name, " gana velocidad! Cartas se aplicarán ", get_speed_multiplier(character), " veces")
+
 func modify_damage_dealt(character: CharacterData, damage: int) -> int:
 	"""Modifica el daño que hace un personaje"""
 	var modified_damage = damage

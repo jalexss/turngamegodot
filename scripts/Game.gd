@@ -2,6 +2,7 @@ extends Control
 
 const ENEMY_DECKS_PATH = "res://data/enemy_decks.json"
 const PLAYER_DECK_PATH = "res://data/player_deck.json"
+const DEBUG_PANEL_SCENE = "res://scenes/DebugPanel.tscn"
 
 # Importar clases necesarias
 const EffectManagerClass = preload("res://scripts/EffectManager.gd")
@@ -10,6 +11,7 @@ const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 @export_enum("Automático", "Balanceado", "Agresivo", "Defensivo", "Inicial") var player_deck_type: int = 0
 @export var testing_deck_id: int = -1  # si > 0 fuerza ese deck en vez de random
 @export var use_external_rosters: bool = false  # Si true, usa rosters de GameManager
+@export var show_debug_panel: bool = true  # Mostrar panel de debug en combate
 
 # --- NODOS ---
 @onready var deck = $Deck
@@ -17,6 +19,7 @@ const EffectManagerClass = preload("res://scripts/EffectManager.gd")
 @onready var player_manager = get_node_or_null("Player")
 @onready var enemy_manager = get_node_or_null("Enemy")
 @onready var effect_manager = get_node_or_null("EffectManager")
+var debug_panel: Control = null
 
 # --- VARIABLES DE JUEGO ---
 var turn_num := 0
@@ -32,6 +35,10 @@ var current_phase: TurnPhase = TurnPhase.PLAYER
 func _ready() -> void:
 	# Crear nodos si no existen
 	_create_missing_managers()
+	
+	# Crear panel de debug si está habilitado
+	if show_debug_panel:
+		_create_debug_panel()
 	
 	# Cargar definiciones de personajes
 	char_defs  = _load_char_defs("res://data/characters.json")
@@ -99,6 +106,22 @@ func _create_missing_managers() -> void:
 		new_enemy.name = "Enemy"
 		add_child(new_enemy)
 		enemy_manager = new_enemy
+
+func _create_debug_panel() -> void:
+	"""Crea el panel de debug para testing"""
+	# Crear directamente desde el script (más confiable)
+	var debug_script = load("res://scripts/DebugPanel.gd")
+	if debug_script:
+		debug_panel = Control.new()
+		debug_panel.name = "DebugPanel"
+		debug_panel.set_script(debug_script)
+		debug_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		debug_panel.z_index = 100  # Asegurar que esté al frente
+		add_child(debug_panel)
+		move_child(debug_panel, get_child_count() - 1)
+		print("🔧 Panel de Debug creado")
+	else:
+		push_warning("No se pudo cargar DebugPanel.gd")
 
 func _should_use_external_rosters() -> bool:
 	"""Verifica si debemos usar rosters externos de GameManager"""
@@ -455,6 +478,8 @@ func _generate_roster(defs: Dictionary, min_chars: int, max_chars: int) -> Array
 		char_data.defense = char_def.get("defense", 5)
 		char_data.rate = char_def.get("rate", 1)
 		char_data.role = char_def.get("role", "")
+		char_data.deck_id = char_def.get("deck_id", 1)
+		char_data.range = char_def.get("range", "common")
 		var portrait_path = char_def.get("portrait", "")
 		char_data.sprite_path = portrait_path
 		

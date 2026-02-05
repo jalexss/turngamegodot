@@ -30,11 +30,13 @@
 		{
 			"id": 4,
 			"name": "Botas de Velocidad",
-			"description": "+2 de Velocidad",
-			"stat": "rate",
-			"value": 2,
-			"cost": 45,
-			"icon": "⚡"
+			"description": "Las cartas se aplican 2 veces (ÚNICO)",
+			"stat": "speed_boost",
+			"value": 1,
+			"cost": 150,
+			"icon": "🚀",
+			"unique": true,
+			"max_purchases": 1
 		},
 		{
 			"id": 5,
@@ -65,15 +67,6 @@
 		},
 		{
 			"id": 8,
-			"name": "Alas Ligeras",
-			"description": "+3 de Velocidad",
-			"stat": "rate",
-			"value": 3,
-			"cost": 65,
-			"icon": "🦅"
-		},
-		{
-			"id": 9,
 			"name": "Daga Venenosa",
 			"description": "+3 de Ataque",
 			"stat": "attack",
@@ -82,7 +75,7 @@
 			"icon": "🗡️"
 		},
 		{
-			"id": 10,
+			"id": 9,
 			"name": "Casco de Bronce",
 			"description": "+3 de Defensa",
 			"stat": "defense",
@@ -91,22 +84,13 @@
 			"icon": "⛑️"
 		},
 		{
-			"id": 11,
+			"id": 10,
 			"name": "Tónico Vital",
 			"description": "+10 HP Máximo",
 			"stat": "max_hp",
 			"value": 10,
 			"cost": 40,
 			"icon": "🧪"
-		},
-		{
-			"id": 12,
-			"name": "Amuleto Ágil",
-			"description": "+1 de Velocidad",
-			"stat": "rate",
-			"value": 1,
-			"cost": 30,
-			"icon": "📿"
 		}
 	]
 }
