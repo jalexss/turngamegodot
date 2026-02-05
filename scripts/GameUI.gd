@@ -7,6 +7,8 @@ const TopBarScene = preload("res://scenes/TopBar.tscn")
 const ControlPanelScene = preload("res://scenes/ControlPanel.tscn")
 const DeckModalScene = preload("res://scenes/DeckModal.tscn")
 const DiscardModalScene = preload("res://scenes/DiscardModal.tscn")
+const CharacterPanelScene = preload("res://scenes/ui_elements/CharacterPanel.tscn")
+const CharacterDetailPopupScene = preload("res://scenes/ui_elements/CharacterDetailPopup.tscn")
 
 # --- NODOS DE LA ESCENA ---
 # NOTA: Estas rutas asumen que los nodos son hijos directos de GameUi
@@ -33,6 +35,13 @@ var combat_log_panel: Panel = null
 var combat_log_scroll: ScrollContainer = null
 var combat_log_content: VBoxContainer = null
 var combat_log_visible: bool = false
+
+# --- CHARACTER STATUS PANELS ---
+var player_character_panel: Control = null
+var enemy_character_panel: Control = null
+var active_detail_popup: Control = null
+var _player_chars_data: Array = []
+var _enemy_chars_data: Array = []
 
 # --- NODOS DE GAME OVER ---
 var game_over_overlay: Panel = null
@@ -99,6 +108,9 @@ func _ready() -> void:
 	# Crear nodos faltantes automáticamente
 	_create_missing_nodes()
 	_update_layout_for_viewport()
+	
+	# Crear los nuevos paneles de estado de personajes
+	_setup_character_panels()
 	
 	# Inicializar slots de personajes
 	print("DEBUG: Inicializando slots de personajes...")
@@ -1013,6 +1025,9 @@ func _apply_pressure_damage_to_character(character: CharacterData) -> void:
 	
 	# Actualizar display del personaje
 	_update_character_display(character)
+	
+	# Actualizar paneles de estado inmediatamente
+	_refresh_character_panels()
 	
 	# Verificar si el personaje murió
 	if character.hp == 0:
@@ -1979,6 +1994,9 @@ func _apply_damage(character: CharacterData, damage: int) -> void:
 	
 	print("💥 ", character.name, " recibe ", actual_damage, " de daño → HP: ", character.hp, "/", character.max_hp)
 	
+	# Actualizar paneles de estado inmediatamente
+	_refresh_character_panels()
+	
 	# Verificar game over después de aplicar daño
 	if game_node and game_node.has_method("_check_game_over"):
 		game_node._check_game_over()
@@ -2011,6 +2029,9 @@ func _apply_heal(character: CharacterData, heal: int) -> void:
 		add_combat_log_entry("💚 " + character.name + " ya tiene HP completo")
 	
 	print("💚 ", character.name, " se cura ", actual_heal, " HP → HP: ", character.hp, "/", character.max_hp)
+	
+	# Actualizar paneles de estado inmediatamente
+	_refresh_character_panels()
 
 func _apply_shield(character: CharacterData, shield: int, duration: int = 1) -> void:
 	"""Aplica escudo temporal a un personaje usando el sistema StatusEffect"""
@@ -2380,14 +2401,42 @@ func set_energy(current_energy: int, max_energy: int = 3):
 func update_player_chars(chars_data: Array):
 	print("DEBUG: update_player_chars llamado con ", chars_data.size(), " personajes")
 	print("DEBUG: player_slots_nodes disponibles: ", player_slots_nodes.size())
+	_player_chars_data = chars_data
 	_update_character_slots(player_slots_nodes, chars_data)
 	_update_all_status_effects(player_slots_nodes)
+	
+	# Actualizar panel lateral de jugador
+	if player_character_panel:
+		var game_node = get_parent()
+		var eff_manager = null
+		if game_node and game_node.get("effect_manager"):
+			eff_manager = game_node.effect_manager
+		
+		# Si el panel ya tiene personajes, solo actualizar; si no, configurar
+		if player_character_panel.has_method("refresh_characters") and player_character_panel.characters.size() > 0:
+			player_character_panel.refresh_characters(chars_data)
+		elif player_character_panel.has_method("setup"):
+			player_character_panel.setup(chars_data, true, eff_manager)
 
 func update_enemy_chars(chars_data: Array):
 	print("DEBUG: update_enemy_chars llamado con ", chars_data.size(), " personajes")
 	print("DEBUG: enemy_slots_nodes disponibles: ", enemy_slots_nodes.size())
+	_enemy_chars_data = chars_data
 	_update_character_slots(enemy_slots_nodes, chars_data)
 	_update_all_status_effects(enemy_slots_nodes)
+	
+	# Actualizar panel lateral de enemigo
+	if enemy_character_panel:
+		var game_node = get_parent()
+		var eff_manager = null
+		if game_node and game_node.get("effect_manager"):
+			eff_manager = game_node.effect_manager
+		
+		# Si el panel ya tiene personajes, solo actualizar; si no, configurar
+		if enemy_character_panel.has_method("refresh_characters") and enemy_character_panel.characters.size() > 0:
+			enemy_character_panel.refresh_characters(chars_data)
+		elif enemy_character_panel.has_method("setup"):
+			enemy_character_panel.setup(chars_data, false, eff_manager)
 
 func _update_character_slots(slots: Array, data: Array):
 	print("DEBUG: _update_character_slots - slots: ", slots.size(), " data: ", data.size())
@@ -2554,3 +2603,176 @@ func _on_discard_card_selected(card_data) -> void:
 		add_combat_log_entry("🔄 Carta recuperada del descarte: " + str(card_data.name if card_data.has_method("get") else card_data))
 	else:
 		print("❌ No se puede recuperar carta - método no disponible")
+
+# --- CHARACTER STATUS PANELS ---
+
+func _setup_character_panels() -> void:
+	"""Configura los paneles laterales de estado de personajes"""
+	print("🎭 Configurando paneles de estado de personajes...")
+	
+	var viewport_size = get_viewport().get_visible_rect().size
+	
+	# Panel de jugador (izquierda)
+	player_character_panel = CharacterPanelScene.instantiate()
+	player_character_panel.name = "PlayerCharacterPanel"
+	player_character_panel.z_index = 100
+	add_child(player_character_panel)
+	
+	# Posicionar en el extremo izquierdo
+	player_character_panel.anchor_left = 0.0
+	player_character_panel.anchor_top = 0.3
+	player_character_panel.anchor_right = 0.0
+	player_character_panel.anchor_bottom = 0.7
+	player_character_panel.offset_left = 10
+	player_character_panel.offset_right = 90
+	
+	# Panel de enemigo (derecha)
+	enemy_character_panel = CharacterPanelScene.instantiate()
+	enemy_character_panel.name = "EnemyCharacterPanel"
+	enemy_character_panel.z_index = 100
+	add_child(enemy_character_panel)
+	
+	# Posicionar en el extremo derecho
+	enemy_character_panel.anchor_left = 1.0
+	enemy_character_panel.anchor_top = 0.3
+	enemy_character_panel.anchor_right = 1.0
+	enemy_character_panel.anchor_bottom = 0.7
+	enemy_character_panel.offset_left = -90
+	enemy_character_panel.offset_right = -10
+	
+	# Conectar señales
+	if player_character_panel.has_signal("detail_requested"):
+		player_character_panel.detail_requested.connect(_on_character_detail_requested)
+	
+	if enemy_character_panel.has_signal("detail_requested"):
+		enemy_character_panel.detail_requested.connect(_on_character_detail_requested)
+	
+	print("✅ Paneles de estado configurados")
+
+func _on_character_detail_requested(char_data: CharacterData, is_player: bool, slot_node: Control) -> void:
+	"""Muestra el popup de detalle para un personaje"""
+	# Cerrar popup activo si existe
+	if active_detail_popup and is_instance_valid(active_detail_popup):
+		var old_popup = active_detail_popup
+		active_detail_popup = null
+		old_popup.hide_popup()
+		# No esperamos, simplemente liberamos después de un delay
+		await get_tree().create_timer(0.3).timeout
+		if is_instance_valid(old_popup):
+			old_popup.queue_free()
+	
+	# Crear nuevo popup
+	active_detail_popup = CharacterDetailPopupScene.instantiate()
+	add_child(active_detail_popup)
+	
+	# Obtener EffectManager - buscar de múltiples formas
+	var eff_manager = _get_effect_manager_reference()
+	print("🔍 EffectManager obtenido para popup: ", eff_manager)
+	
+	# Configurar popup
+	active_detail_popup.setup(char_data, is_player, eff_manager)
+	
+	# Posicionar junto al panel, hacia el centro
+	var viewport_size = get_viewport().get_visible_rect().size
+	var popup_size = active_detail_popup.size
+	
+	if is_player:
+		# Panel izquierdo -> popup a la derecha del panel
+		var panel_right = player_character_panel.position.x + player_character_panel.size.x
+		active_detail_popup.position = Vector2(
+			panel_right + 10,
+			slot_node.global_position.y - popup_size.y / 2 + slot_node.size.y / 2
+		)
+	else:
+		# Panel derecho -> popup a la izquierda del panel
+		var panel_left = enemy_character_panel.position.x
+		active_detail_popup.position = Vector2(
+			panel_left - popup_size.x - 10,
+			slot_node.global_position.y - popup_size.y / 2 + slot_node.size.y / 2
+		)
+	
+	# Mantener dentro de la pantalla
+	active_detail_popup.position.y = clamp(
+		active_detail_popup.position.y,
+		TOPBAR_HEIGHT_BASE + 10,
+		viewport_size.y - popup_size.y - 10
+	)
+	
+	# Conectar señal de cierre
+	active_detail_popup.popup_closed.connect(_on_detail_popup_closed)
+	
+	# Mostrar con animación
+	active_detail_popup.show_popup()
+
+func _on_detail_popup_closed() -> void:
+	"""Callback cuando se cierra el popup de detalle"""
+	if active_detail_popup and is_instance_valid(active_detail_popup):
+		active_detail_popup.queue_free()
+		active_detail_popup = null
+
+func update_character_panels() -> void:
+	"""Actualiza los paneles de estado con los datos actuales"""
+	var game_node = get_parent()
+	var eff_manager = null
+	if game_node and game_node.get("effect_manager"):
+		eff_manager = game_node.effect_manager
+	
+	if player_character_panel and player_character_panel.has_method("refresh_characters"):
+		player_character_panel.refresh_characters(_player_chars_data)
+	
+	if enemy_character_panel and enemy_character_panel.has_method("refresh_characters"):
+		enemy_character_panel.refresh_characters(_enemy_chars_data)
+	
+	# Actualizar popup activo si está abierto
+	if active_detail_popup and is_instance_valid(active_detail_popup) and active_detail_popup.has_method("refresh"):
+		active_detail_popup.refresh()
+
+func _refresh_character_panels() -> void:
+	"""Actualiza los paneles de estado después de daño/curación"""
+	if player_character_panel and player_character_panel.has_method("update_display"):
+		player_character_panel.update_display()
+	
+	if enemy_character_panel and enemy_character_panel.has_method("update_display"):
+		enemy_character_panel.update_display()
+
+func _initialize_character_panels_with_data() -> void:
+	"""Inicializa los paneles con los datos de personajes actuales"""
+	var game_node = get_parent()
+	var eff_manager = null
+	if game_node and game_node.get("effect_manager"):
+		eff_manager = game_node.effect_manager
+	
+	if player_character_panel and player_character_panel.has_method("setup"):
+		player_character_panel.setup(_player_chars_data, true, eff_manager)
+	
+	if enemy_character_panel and enemy_character_panel.has_method("setup"):
+		enemy_character_panel.setup(_enemy_chars_data, false, eff_manager)
+
+func _get_effect_manager_reference() -> Node:
+	"""Busca el EffectManager de múltiples formas"""
+	# Método 1: Desde el parent (Game node)
+	var game_node = get_parent()
+	if game_node:
+		if game_node.has_method("get_effect_manager"):
+			var em = game_node.get_effect_manager()
+			if em:
+				return em
+		if "effect_manager" in game_node:
+			var em = game_node.effect_manager
+			if em:
+				return em
+	
+	# Método 2: Buscar EffectManager como hermano
+	if game_node:
+		var em = game_node.get_node_or_null("EffectManager")
+		if em:
+			return em
+	
+	# Método 3: Buscar en el árbol desde la raíz
+	var root = get_tree().root
+	var em = root.find_child("EffectManager", true, false)
+	if em:
+		return em
+	
+	print("⚠️ No se pudo encontrar EffectManager por ningún método")
+	return null

@@ -36,6 +36,9 @@ func _ready() -> void:
 	# Crear nodos si no existen
 	_create_missing_managers()
 	
+	# Crear EffectManager para gestionar buffs/debuffs
+	_create_effect_manager()
+	
 	# Crear panel de debug si está habilitado
 	if show_debug_panel:
 		_create_debug_panel()
@@ -141,6 +144,10 @@ func _should_use_external_rosters() -> bool:
 func _get_game_manager():
 	"""Obtiene referencia segura al GameManager"""
 	return get_node_or_null("/root/GameManager")
+
+func get_effect_manager():
+	"""Retorna el EffectManager para uso externo"""
+	return effect_manager
 	
 func _create_effect_manager() -> void:
 	if not effect_manager:
@@ -149,6 +156,9 @@ func _create_effect_manager() -> void:
 		new_effect_manager.name = "EffectManager"
 		add_child(new_effect_manager)
 		effect_manager = new_effect_manager
+		print("✅ EffectManager creado: ", effect_manager)
+	else:
+		print("✅ EffectManager ya existe: ", effect_manager)
 
 func _start_turn() -> void:
 	turn_num += 1

@@ -73,9 +73,18 @@ func remove_all_effects(character: CharacterData) -> void:
 
 func get_character_effects(character: CharacterData) -> Array:
 	"""Retorna todos los efectos activos de un personaje"""
-	if not active_effects.has(character):
-		return []
-	return active_effects[character].duplicate()
+	# Primero intentar búsqueda directa por referencia
+	if active_effects.has(character):
+		return active_effects[character].duplicate()
+	
+	# Fallback: buscar por nombre e id (para cuando la referencia es diferente)
+	for stored_char in active_effects.keys():
+		if stored_char and character:
+			if stored_char.name == character.name and stored_char.id == character.id:
+				print("🔎 EffectManager: Encontrado personaje por nombre/id: ", character.name)
+				return active_effects[stored_char].duplicate()
+	
+	return []
 
 # --- PROCESAMIENTO POR TURNOS ---
 func process_turn_start_effects(character: CharacterData) -> void:

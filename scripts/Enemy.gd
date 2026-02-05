@@ -462,6 +462,10 @@ func _apply_damage_to_character(character, damage: int) -> void:
 	if ui_node and ui_node.has_method("_update_character_display"):
 		ui_node._update_character_display(character)
 	
+	# Actualizar paneles de estado inmediatamente
+	if ui_node and ui_node.has_method("_refresh_character_panels"):
+		ui_node._refresh_character_panels()
+	
 	# Verificar game over después de aplicar daño
 	if game_node and game_node.has_method("_check_game_over"):
 		game_node._check_game_over()
@@ -481,21 +485,31 @@ func _apply_heal_to_character(character, heal: int) -> void:
 	# Actualizar UI
 	if ui_node and ui_node.has_method("_update_character_display"):
 		ui_node._update_character_display(character)
+	
+	# Actualizar paneles de estado inmediatamente
+	if ui_node and ui_node.has_method("_refresh_character_panels"):
+		ui_node._refresh_character_panels()
 
 func _apply_shield_to_character(character, shield: int) -> void:
 	"""Aplica escudo temporal a un personaje usando el sistema StatusEffect"""
 	# Intentar usar el EffectManager para aplicar escudo temporal
+	print("🔍 _apply_shield_to_character: game_node=", game_node, " has_method=", game_node.has_method("get_effect_manager") if game_node else "null")
 	if game_node and game_node.has_method("get_effect_manager"):
 		var effect_manager = game_node.get_effect_manager()
+		print("🔍 effect_manager obtenido: ", effect_manager)
 		if effect_manager:
 			var shield_effect = StatusEffect.new(StatusEffect.EffectType.BUFF_DEFENSE, shield, 1)
 			shield_effect.stackable = true
 			shield_effect.source_name = "Enemy Action"
 			effect_manager.apply_effect(character, shield_effect)
-			print("🛡️ ", character.name, " gana ", shield, " de escudo temporal (1 turno)")
+			print("🛡️ ", character.name, " gana ", shield, " de escudo temporal (1 turno) - VIA EFFECT_MANAGER")
+			# Actualizar paneles
+			if ui_node and ui_node.has_method("_refresh_character_panels"):
+				ui_node._refresh_character_panels()
 			return
 	
 	# Fallback: aplicar al stat directamente
+	print("⚠️ FALLBACK: Aplicando escudo directamente al stat defense")
 	character.defense += shield
 	print("🛡️ ", character.name, " gana ", shield, " de escudo (Defensa: ", character.defense, ")")
 	

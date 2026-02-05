@@ -6,7 +6,6 @@ signal character_clicked(character_data)
 
 # Nodos de la escena
 @onready var name_label = $VBoxContainer/NameLabel
-@onready var health_bar = $VBoxContainer/HealthBar
 @onready var portrait = $Portrait
 @onready var hover_effect = $HoverEffect
 
@@ -19,7 +18,6 @@ var active_effects: Array = []   # Efectos de estado activos
 func _ready():
 	print("DEBUG: CharacterSlot._ready() - Verificando nodos...")
 	print("DEBUG: name_label: ", name_label)
-	print("DEBUG: health_bar: ", health_bar)
 	print("DEBUG: portrait: ", portrait)
 	print("DEBUG: hover_effect: ", hover_effect)
 	
@@ -36,11 +34,7 @@ func _ready():
 func set_character_data(data: CharacterData):
 	character_data = data
 	
-	# Actualizar la UI con los datos recibidos
-	# NO actualizar name_label.text aquí para preservar las acciones
-	# _update_action_display() se encargará del nombre + acciones
-	health_bar.max_value = character_data.max_hp
-	health_bar.value = character_data.hp
+	# La barra de vida se removió - ahora está en el panel lateral
 	
 	# ¡Aquí está la clave para que el sprite aparezca!
 	print("DEBUG: CharacterSlot - Configurando portrait para ", character_data.name)
@@ -126,7 +120,6 @@ func set_dead_state(dead: bool) -> void:
 		# Efecto visual de muerte
 		portrait.modulate = Color(0.3, 0.3, 0.3, 0.7)  # Gris y semi-transparente
 		name_label.modulate = Color.RED
-		health_bar.modulate = Color.RED
 		
 		# Quitar cualquier highlight
 		hover_effect.visible = false
@@ -139,7 +132,6 @@ func set_dead_state(dead: bool) -> void:
 		# Restaurar colores normales
 		portrait.modulate = Color(1, 1, 1, 0.666667)  # Color original
 		name_label.modulate = Color.WHITE
-		health_bar.modulate = Color.WHITE
 
 # --- SISTEMA DE PREVIEW DE ACCIONES ---
 func show_action_previews(actions: Array) -> void:
