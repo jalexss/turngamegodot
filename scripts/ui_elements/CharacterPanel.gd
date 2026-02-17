@@ -26,12 +26,8 @@ func _ready():
 	_setup_hover_timer()
 
 func _setup_style():
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.15, 0.9)
-	style.border_color = Color(0.3, 0.3, 0.4, 1.0)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(12)
-	style.set_content_margin_all(8)
+	# Panel invisible - solo el contenido sera visible
+	var style = StyleBoxEmpty.new()
 	add_theme_stylebox_override("panel", style)
 
 func _setup_hover_timer():
@@ -92,10 +88,12 @@ func _create_character_slot(char_data: CharacterData, index: int) -> Control:
 	slot.custom_minimum_size = Vector2(SLOT_SIZE, SLOT_SIZE)
 	slot.size = Vector2(SLOT_SIZE, SLOT_SIZE)
 	slot.mouse_filter = Control.MOUSE_FILTER_STOP
+	slot.clip_contents = true  # Recortar contenido que sobresalga
 	slot.set_meta("character_data", char_data)
 	slot.set_meta("slot_index", index)
 	
 	var char_color = _get_character_color(char_data)
+	var has_portrait = char_data.portrait != null
 	
 	# Border (dark background) - MOUSE_FILTER_IGNORE para que no bloquee clicks
 	var border = ColorRect.new()
@@ -106,30 +104,61 @@ func _create_character_slot(char_data: CharacterData, index: int) -> Control:
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(border)
 	
-	# Inner colored area (slightly smaller to show border)
-	var inner = ColorRect.new()
-	inner.name = "ColorBackground"
-	inner.size = Vector2(SLOT_SIZE - 6, SLOT_SIZE - 6)
-	inner.position = Vector2(3, 3)
-	inner.color = char_color
-	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_child(inner)
-	
-	# HP percentage overlay
-	var hp_label = Label.new()
-	hp_label.name = "HPLabel"
-	hp_label.text = _get_hp_percentage_text(char_data)
-	hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hp_label.size = Vector2(SLOT_SIZE, SLOT_SIZE)
-	hp_label.position = Vector2.ZERO
-	hp_label.add_theme_font_size_override("font_size", 14)
-	hp_label.add_theme_color_override("font_color", Color.WHITE)
-	hp_label.add_theme_color_override("font_shadow_color", Color.BLACK)
-	hp_label.add_theme_constant_override("shadow_offset_x", 1)
-	hp_label.add_theme_constant_override("shadow_offset_y", 1)
-	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_child(hp_label)
+	# Si tiene portrait, mostrar portrait con efecto de oscurecimiento
+	if has_portrait:
+		# Contenedor para el portrait con tamaño fijo
+		var portrait_container = Control.new()
+		portrait_container.name = "PortraitContainer"
+		portrait_container.size = Vector2(SLOT_SIZE - 6, SLOT_SIZE - 6)
+		portrait_container.position = Vector2(3, 3)
+		portrait_container.clip_contents = true
+		portrait_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(portrait_container)
+		
+		# Portrait texture - escalar para que quepa completamente
+		var portrait_rect = TextureRect.new()
+		portrait_rect.name = "PortraitRect"
+		portrait_rect.texture = char_data.portrait
+		portrait_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		portrait_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		portrait_container.add_child(portrait_rect)
+		
+		# Overlay oscuro que se ajusta segun la vida
+		var dark_overlay = ColorRect.new()
+		dark_overlay.name = "DarkOverlay"
+		dark_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		var hp_percent = float(char_data.hp) / float(char_data.max_hp) if char_data.max_hp > 0 else 0.0
+		var darkness = 1.0 - hp_percent  # 0% vida = completamente oscuro (1.0), 100% vida = sin oscuridad (0.0)
+		dark_overlay.color = Color(0, 0, 0, darkness * 0.85)  # Maximo 85% de opacidad para que aun se vea algo
+		dark_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		portrait_container.add_child(dark_overlay)
+	else:
+		# Sin portrait - mostrar color por rol
+		var inner = ColorRect.new()
+		inner.name = "ColorBackground"
+		inner.size = Vector2(SLOT_SIZE - 6, SLOT_SIZE - 6)
+		inner.position = Vector2(3, 3)
+		inner.color = char_color
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(inner)
+		
+		# HP percentage overlay (solo si no hay portrait)
+		var hp_label = Label.new()
+		hp_label.name = "HPLabel"
+		hp_label.text = _get_hp_percentage_text(char_data)
+		hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hp_label.size = Vector2(SLOT_SIZE, SLOT_SIZE)
+		hp_label.position = Vector2.ZERO
+		hp_label.add_theme_font_size_override("font_size", 14)
+		hp_label.add_theme_color_override("font_color", Color.WHITE)
+		hp_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+		hp_label.add_theme_constant_override("shadow_offset_x", 1)
+		hp_label.add_theme_constant_override("shadow_offset_y", 1)
+		hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(hp_label)
 	
 	# Buff icons for enemies (shown inline)
 	if not is_player_panel:
@@ -201,12 +230,22 @@ func update_display():
 		if not char_data:
 			continue
 		
-		# Update HP label
+		# Update HP label (solo para slots sin portrait)
 		var hp_label = slot.get_node_or_null("HPLabel")
 		if hp_label:
 			var hp_text = _get_hp_percentage_text(char_data)
 			hp_label.text = hp_text
 			print("  ", char_data.name, ": ", hp_text, " (", char_data.hp, "/", char_data.max_hp, ")")
+		
+		# Update dark overlay (para slots con portrait - buscar dentro de PortraitContainer)
+		var portrait_container = slot.get_node_or_null("PortraitContainer")
+		if portrait_container:
+			var dark_overlay = portrait_container.get_node_or_null("DarkOverlay")
+			if dark_overlay:
+				var hp_percent = float(char_data.hp) / float(char_data.max_hp) if char_data.max_hp > 0 else 0.0
+				var darkness = 1.0 - hp_percent
+				dark_overlay.color = Color(0, 0, 0, darkness * 0.85)
+				print("  ", char_data.name, ": Portrait oscurecido ", int(darkness * 100), "% (HP: ", char_data.hp, "/", char_data.max_hp, ")")
 		
 		# Update visibility based on alive status
 		slot.visible = char_data.hp > 0

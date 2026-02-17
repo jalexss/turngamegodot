@@ -19,20 +19,8 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="HeaderContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-
-[node name="ImagesContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-
-[node name="Portrait" type="TextureRect" parent="MarginContainer/VBoxContainer/ImagesContainer"]
-stretch_mode = 2
-custom_minimum_size = Vector2(64, 64)
-expand = true
-
-[node name="Idle" type="TextureRect" parent="MarginContainer/VBoxContainer/ImagesContainer"]
-stretch_mode = 2
-custom_minimum_size = Vector2(64, 64)
-expand = true
 
 [node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderContainer"]
 layout_mode = 2
@@ -46,6 +34,17 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "✕"
 flat = true
+
+[node name="HPContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="HPLabel" type="Label" parent="MarginContainer/VBoxContainer/HPContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "❤️ 100.00 / 100.00 (100%)"
+horizontal_alignment = 1
 
 [node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2

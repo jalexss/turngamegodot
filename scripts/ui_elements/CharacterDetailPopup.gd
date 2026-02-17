@@ -10,15 +10,13 @@ var is_player_character: bool = true
 var effect_manager: Node = null
 
 @onready var name_label: Label = $MarginContainer/VBoxContainer/HeaderContainer/NameLabel
+@onready var hp_label: Label = $MarginContainer/VBoxContainer/HPContainer/HPLabel
 @onready var buffs_container: VBoxContainer = $MarginContainer/VBoxContainer/BuffsSection/BuffsContainer
 @onready var debuffs_container: VBoxContainer = $MarginContainer/VBoxContainer/DebuffsSection/DebuffsContainer
 @onready var permanent_section: VBoxContainer = $MarginContainer/VBoxContainer/PermanentSection
 @onready var permanent_container: VBoxContainer = $MarginContainer/VBoxContainer/PermanentSection/PermanentContainer
 @onready var close_button: Button = $MarginContainer/VBoxContainer/HeaderContainer/CloseButton
 
-
-@onready var portrait_texture: TextureRect = $MarginContainer/VBoxContainer/ImagesContainer/Portrait
-@onready var idle_texture: TextureRect = $MarginContainer/VBoxContainer/ImagesContainer/Idle
 var _tween: Tween = null
 
 func _ready():
@@ -60,23 +58,19 @@ func _update_display():
 	if name_label:
 		name_label.text = character_data.name
 
-	# Mostrar portrait
-	if portrait_texture and character_data.portrait:
-		portrait_texture.texture = character_data.portrait
-	else:
-		portrait_texture.texture = null
-
-	# Mostrar idle si existe (primer frame si es spritesheet o imagen completa)
-	if idle_texture and character_data.idle != "":
-		var idle_path = character_data.idle
-		if typeof(idle_path) == TYPE_STRING and ResourceLoader.exists(idle_path):
-			var idle_tex = load(idle_path) as Texture2D
-			idle_texture.texture = idle_tex
+	# Update HP display with current/max (2 decimals)
+	if hp_label:
+		var current_hp = "%.2f" % character_data.hp
+		var max_hp = "%.2f" % character_data.max_hp
+		var hp_percent = (float(character_data.hp) / float(character_data.max_hp) * 100) if character_data.max_hp > 0 else 0.0
+		hp_label.text = "❤️ %s / %s (%.1f%%)" % [current_hp, max_hp, hp_percent]
+		# Color segun porcentaje de vida
+		if hp_percent > 50:
+			hp_label.add_theme_color_override("font_color", Color.LIGHT_GREEN)
+		elif hp_percent > 25:
+			hp_label.add_theme_color_override("font_color", Color.YELLOW)
 		else:
-			idle_texture.texture = null
-	else:
-		if idle_texture:
-			idle_texture.texture = null
+			hp_label.add_theme_color_override("font_color", Color.CORAL)
 	
 	# Clear existing entries
 	_clear_container(buffs_container)

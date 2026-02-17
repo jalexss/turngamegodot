@@ -5,9 +5,10 @@
 [node name="Node2D" type="Node2D" unique_id=464600544]
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1134686633]
+position = Vector2(0, -39)
 sprite_frames = ExtResource("1_rq2hs")
 animation = &"idle"
-frame_progress = 0.003944179
+frame_progress = 0.85458815
 speed_scale = 2.0
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=427071175]
