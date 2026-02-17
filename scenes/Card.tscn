@@ -1,75 +1,106 @@
 [gd_scene load_steps=2 format=3 uid="uid://p6b0r1bx3lf2"]
 
-[ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="1_yiag5"]
+[ext_resource type="Script" uid="uid://cpdngnth0jr0v" path="res://scripts/Card.gd" id="1_card"]
 
-[node name="PanelContainer" type="Node2D"]
-script = ExtResource("1_yiag5")
+[node name="Card" type="Node2D"]
+script = ExtResource("1_card")
 
-[node name="Background" type="TextureRect" parent="."]
-custom_minimum_size = Vector2(200, 50)
-offset_left = -98.0
-offset_top = -24.0
-offset_right = 102.0
-offset_bottom = 254.0
+[node name="CardPanel" type="Panel" parent="."]
+offset_left = -90.0
+offset_top = -130.0
+offset_right = 90.0
+offset_bottom = 130.0
 
-[node name="MainVBox" type="Control" parent="."]
-custom_minimum_size = Vector2(200, 50)
-layout_mode = 3
+[node name="ArtworkArea" type="TextureRect" parent="CardPanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 35.0
+offset_right = 170.0
+offset_bottom = 135.0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TitlePanel" type="Panel" parent="CardPanel"]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 5.0
+offset_right = 175.0
+offset_bottom = 30.0
+
+[node name="TitleLabel" type="Label" parent="CardPanel/TitlePanel"]
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -100.0
-offset_top = -25.0
-offset_right = 100.0
-offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="EnergyCostContainer" type="Control" parent="CardPanel"]
+layout_mode = 0
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 25.0
+offset_bottom = 25.0
+
+[node name="EnergyCircle" type="Panel" parent="CardPanel/EnergyCostContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Artwork" type="TextureRect" parent="MainVBox"]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-offset_left = 1.0
-offset_right = 201.0
-offset_bottom = 120.0
-
-[node name="NameLabel" type="Label" parent="MainVBox"]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-offset_left = 1.0
-offset_top = 4.0
-offset_right = 201.0
-offset_bottom = 27.0
-text = "NameLabel"
-horizontal_alignment = 1
-
-[node name="DescriptionLabel" type="Label" parent="MainVBox"]
-layout_mode = 2
-offset_left = 1.0
-offset_top = 116.0
-offset_right = 201.0
-offset_bottom = 236.0
-text = "DescriptionLabel Prueba graaaaaande"
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 1
-
-[node name="PowerLabel" type="Label" parent="MainVBox"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-offset_top = 233.0
-offset_right = 100.0
-offset_bottom = 256.0
-text = "PowerLabel"
+[node name="EnergyCostLabel" type="Label" parent="CardPanel/EnergyCostContainer/EnergyCircle"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CostLabel" type="Label" parent="MainVBox"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-offset_left = 103.0
-offset_top = 232.0
-offset_right = 203.0
+[node name="RoleIndicatorContainer" type="HBoxContainer" parent="CardPanel"]
+layout_mode = 0
+offset_left = 130.0
+offset_top = -10.0
+offset_right = 190.0
+offset_bottom = 20.0
+theme_override_constants/separation = 2
+
+[node name="DescriptionPanel" type="Panel" parent="CardPanel"]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 140.0
+offset_right = 175.0
+offset_bottom = 220.0
+
+[node name="DescriptionLabel" type="Label" parent="CardPanel/DescriptionPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 2.0
+offset_right = -4.0
+offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 9
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="EffectsRow" type="HBoxContainer" parent="CardPanel"]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 225.0
+offset_right = 175.0
 offset_bottom = 255.0
-text = "CostLabel"
-horizontal_alignment = 1
-vertical_alignment = 1
+alignment = 1
+theme_override_constants/separation = 4

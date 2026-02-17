@@ -159,6 +159,59 @@ func get_required_character_info() -> String:
 		return "Requiere rol: " + required_character_role
 	return "Sin requisitos especiales"
 
+func get_all_effect_values() -> Array:
+	"""Retorna todos los efectos con tipo, valor e información para mostrar"""
+	var result: Array = []
+	for effect in effects:
+		if effect.has("type") and effect.has("value"):
+			result.append({
+				"type": str(effect["type"]),
+				"value": int(effect["value"]),
+				"duration": int(effect.get("duration", 0))
+			})
+	return result
+
+func get_role_requirements() -> Array:
+	"""Retorna lista de roles requeridos para jugar esta carta"""
+	var roles: Array = []
+	if required_character_role != "":
+		roles.append(required_character_role.to_upper())
+	return roles
+
+func is_universal() -> bool:
+	"""Retorna true si cualquier personaje puede usar esta carta"""
+	return required_character_id == -1 and required_character_role == ""
+
+func get_primary_effect_type() -> String:
+	"""Retorna el tipo de efecto principal de la carta"""
+	if effects.is_empty():
+		return ""
+	return str(effects[0].get("type", ""))
+
+func get_total_damage() -> int:
+	"""Retorna el daño total de todos los efectos de daño"""
+	var total := 0
+	for effect in effects:
+		if str(effect.get("type", "")) == "DAMAGE":
+			total += int(effect.get("value", 0))
+	return total
+
+func get_total_shield() -> int:
+	"""Retorna el escudo total de todos los efectos de escudo"""
+	var total := 0
+	for effect in effects:
+		if str(effect.get("type", "")) == "SHIELD":
+			total += int(effect.get("value", 0))
+	return total
+
+func get_total_heal() -> int:
+	"""Retorna la curación total de todos los efectos de curación"""
+	var total := 0
+	for effect in effects:
+		if str(effect.get("type", "")) == "HEAL":
+			total += int(effect.get("value", 0))
+	return total
+
 func _check_condition(condition: Dictionary, target: CharacterData) -> bool:
 	"""Verifica una condición específica"""
 	var type = condition.get("type", "")
