@@ -13,7 +13,12 @@ class_name CharacterData
 @export var rate: int = 1        # Velocidad o prioridad
 @export var role: String = ""    # Rol del personaje (HEALER, TANK, etc.)
 @export var deck_id: int = 1     # ID del deck de cartas para enemigos
-@export var range: String = "common"  # Rango del enemigo: common, epic, boss
+@export var char_range: String = "common"  # Rango del enemigo: common, epic, boss
+
+# Ruta a la imagen idle (animación o frame)
+@export var idle: String = ""
+# SpriteFrames procesado desde el spritesheet idle (para animaciones)
+var idle_frames: SpriteFrames = null
 
 # Stats base (antes de buffos permanentes)
 var base_attack: int = 0

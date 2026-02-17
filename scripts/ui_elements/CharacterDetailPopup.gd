@@ -16,6 +16,9 @@ var effect_manager: Node = null
 @onready var permanent_container: VBoxContainer = $MarginContainer/VBoxContainer/PermanentSection/PermanentContainer
 @onready var close_button: Button = $MarginContainer/VBoxContainer/HeaderContainer/CloseButton
 
+
+@onready var portrait_texture: TextureRect = $MarginContainer/VBoxContainer/ImagesContainer/Portrait
+@onready var idle_texture: TextureRect = $MarginContainer/VBoxContainer/ImagesContainer/Idle
 var _tween: Tween = null
 
 func _ready():
@@ -56,6 +59,24 @@ func _update_display():
 	# Update name
 	if name_label:
 		name_label.text = character_data.name
+
+	# Mostrar portrait
+	if portrait_texture and character_data.portrait:
+		portrait_texture.texture = character_data.portrait
+	else:
+		portrait_texture.texture = null
+
+	# Mostrar idle si existe (primer frame si es spritesheet o imagen completa)
+	if idle_texture and character_data.idle != "":
+		var idle_path = character_data.idle
+		if typeof(idle_path) == TYPE_STRING and ResourceLoader.exists(idle_path):
+			var idle_tex = load(idle_path) as Texture2D
+			idle_texture.texture = idle_tex
+		else:
+			idle_texture.texture = null
+	else:
+		if idle_texture:
+			idle_texture.texture = null
 	
 	# Clear existing entries
 	_clear_container(buffs_container)

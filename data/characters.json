@@ -37,5 +37,20 @@
     "rate": 2,
     "role": "CARRY",
     "is_enemy": false
+  },
+  {
+    "id": 4,
+    "name": "Jeremias",
+    "description": "Un personaje especial jugable.",
+    "portrait": "res://assets/characters/jeremias/portrait.png",
+    "idle": "res://sprites/characters/jeremias/idle_frames.tres",
+    "hp": 22,
+    "max_hp": 22,
+    "attack": 7,
+    "defense": 5,
+    "rate": 1,
+    "role": "CARRY",
+    "is_enemy": false,
+    "unique_card_id": 1000
   }
 ]

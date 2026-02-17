@@ -8,6 +8,7 @@ signal character_clicked(character_data)
 @onready var name_label = $VBoxContainer/NameLabel
 @onready var portrait = $Portrait
 @onready var hover_effect = $HoverEffect
+@onready var idle_animation = $IdleAnimation
 
 var character_data: CharacterData
 var is_targeting_highlight: bool = false
@@ -26,9 +27,17 @@ func _ready():
 	mouse_exited.connect(_on_mouse_exited)
 	gui_input.connect(_on_gui_input)  # ¡Esta línea faltaba!
 	
+	# Conectar señal de resize para recalcular escala de animación
+	resized.connect(_on_resized)
+	
 	# Ocultar el efecto de hover al inicio
 	if hover_effect:
 		hover_effect.visible = false
+
+func _on_resized() -> void:
+	"""Recalcula la escala de la animación cuando el slot cambia de tamaño"""
+	if idle_animation and idle_animation.visible and idle_animation.sprite_frames:
+		_adjust_idle_animation_scale()
 
 # Función pública para que GameUI nos envíe los datos del personaje
 func set_character_data(data: CharacterData):
@@ -37,16 +46,35 @@ func set_character_data(data: CharacterData):
 	# La barra de vida se removió - ahora está en el panel lateral
 	
 	# ¡Aquí está la clave para que el sprite aparezca!
-	print("DEBUG: CharacterSlot - Configurando portrait para ", character_data.name)
+	print("DEBUG: CharacterSlot - Configurando sprite para ", character_data.name)
+	print("DEBUG: idle_frames: ", character_data.idle_frames)
 	print("DEBUG: portrait texture: ", character_data.portrait)
-	print("DEBUG: sprite_path: ", character_data.sprite_path)
 	
-	if character_data.portrait:
+	# Verificar si tiene animación idle (SpriteFrames)
+	if character_data.idle_frames != null and idle_animation:
+		# Usar AnimatedSprite2D para la animación idle
+		idle_animation.sprite_frames = character_data.idle_frames
+		
+		# Calcular escala después del layout (usar call_deferred para asegurar tamaño correcto)
+		call_deferred("_adjust_idle_animation_scale")
+		
+		idle_animation.visible = true
+		idle_animation.play("idle")
+		portrait.visible = false  # Ocultar portrait estático
+		print("DEBUG: ✅ Animación idle asignada y reproduciéndose")
+	elif character_data.portrait:
+		# Fallback: usar portrait estático
 		portrait.texture = character_data.portrait
-		print("DEBUG: Portrait asignado exitosamente")
+		portrait.visible = true
+		if idle_animation:
+			idle_animation.visible = false
+		print("DEBUG: ✅ Portrait estático asignado")
 	else:
-		portrait.texture = null # Limpiar si no hay retrato
-		print("DEBUG: No hay portrait - texture = null")
+		portrait.texture = null
+		portrait.visible = true
+		if idle_animation:
+			idle_animation.visible = false
+		print("DEBUG: ⚠️ No hay sprite - texture = null")
 	
 	# Actualizar display de acciones (incluye el nombre)
 	_update_action_display()
@@ -54,6 +82,46 @@ func set_character_data(data: CharacterData):
 	# Verificar si está muerto
 	if character_data.hp <= 0:
 		set_dead_state(true)
+
+func _adjust_idle_animation_scale() -> void:
+	"""Ajusta la escala del AnimatedSprite2D para que encaje en el slot"""
+	if not idle_animation or not idle_animation.sprite_frames:
+		return
+	
+	# Obtener el tamaño del primer frame de la animación
+	var anim_name = "idle"
+	if idle_animation.sprite_frames.get_frame_count(anim_name) <= 0:
+		return
+	
+	var frame_texture = idle_animation.sprite_frames.get_frame_texture(anim_name, 0)
+	if not frame_texture:
+		return
+	
+	var frame_size = frame_texture.get_size()
+	var slot_size = size  # Tamaño del Control (140x180 por defecto)
+	
+	# Calcular escala para que encaje manteniendo proporción
+	# Dejamos margen y reservamos espacio para el nombre (~28px)
+	var name_area = 28
+	var available_height = slot_size.y - name_area
+	var available_width = slot_size.x
+	
+	var scale_x = available_width / frame_size.x
+	var scale_y = available_height / frame_size.y
+	var final_scale = min(scale_x, scale_y)  # Usar la escala más pequeña para mantener proporción
+	
+	idle_animation.scale = Vector2(final_scale, final_scale)
+	
+	# Calcular altura del sprite escalado
+	var scaled_height = frame_size.y * final_scale
+	
+	# Posicionar: centrado horizontal, alineado hacia abajo (justo encima del nombre)
+	var pos_x = slot_size.x / 2
+	var pos_y = available_height - (scaled_height / 2)  # Alinear borde inferior con el área del nombre
+	
+	idle_animation.position = Vector2(pos_x, pos_y)
+	
+	print("DEBUG: Escala ajustada a ", final_scale, " para frame de ", frame_size)
 
 # --- MANEJO DE INTERACTIVIDAD ---
 
@@ -119,6 +187,9 @@ func set_dead_state(dead: bool) -> void:
 	if dead:
 		# Efecto visual de muerte
 		portrait.modulate = Color(0.3, 0.3, 0.3, 0.7)  # Gris y semi-transparente
+		if idle_animation:
+			idle_animation.modulate = Color(0.3, 0.3, 0.3, 0.7)
+			idle_animation.stop()  # Detener animación al morir
 		name_label.modulate = Color.RED
 		
 		# Quitar cualquier highlight
@@ -131,6 +202,10 @@ func set_dead_state(dead: bool) -> void:
 	else:
 		# Restaurar colores normales
 		portrait.modulate = Color(1, 1, 1, 0.666667)  # Color original
+		if idle_animation:
+			idle_animation.modulate = Color.WHITE
+			if idle_animation.sprite_frames:
+				idle_animation.play("idle")  # Reanudar animación
 		name_label.modulate = Color.WHITE
 
 # --- SISTEMA DE PREVIEW DE ACCIONES ---

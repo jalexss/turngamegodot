@@ -159,7 +159,7 @@ func _get_character_color(char_data: CharacterData) -> Color:
 				return Color(0.6, 0.6, 0.6, 1.0)  # Gray default
 	else:
 		# Enemy: Red with opacity based on rarity
-		var rarity = char_data.range if char_data.get("range") else "common"
+		var rarity = char_data.char_range if char_data.char_range != "" else "common"
 		match rarity.to_lower():
 			"boss":
 				return Color(0.4, 0.1, 0.1, 1.0)  # Dark red

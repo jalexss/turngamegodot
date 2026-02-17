@@ -32,6 +32,10 @@ grow_horizontal = 2
 grow_vertical = 2
 stretch_mode = 5
 
+[node name="IdleAnimation" type="AnimatedSprite2D" parent="."]
+visible = false
+position = Vector2(70, 90)
+
 [node name="HoverEffect" type="ColorRect" parent="."]
 visible = false
 layout_mode = 1

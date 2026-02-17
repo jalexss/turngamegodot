@@ -142,15 +142,71 @@ func create_character_data(char_def: Dictionary) -> Resource:
 	char_data.rate = char_def.get("rate", 1)
 	char_data.role = char_def.get("role", "")
 	char_data.deck_id = char_def.get("deck_id", 1)
-	char_data.range = char_def.get("range", "common")
+	char_data.char_range = char_def.get("range", "common")
 	
 	var portrait_path = char_def.get("portrait", "")
 	char_data.sprite_path = portrait_path
-	
 	if portrait_path != "" and ResourceLoader.exists(portrait_path):
 		char_data.portrait = load(portrait_path) as Texture2D
-	
+
+	# Soporte para idle
+	if char_def.has("idle"):
+		char_data.idle = char_def["idle"]
+		if char_data.idle != "" and ResourceLoader.exists(char_data.idle):
+			# Detectar si es un .tres (SpriteFrames ya creado) o un .png (spritesheet a procesar)
+			if char_data.idle.ends_with(".tres"):
+				# Cargar SpriteFrames directamente
+				var loaded_frames = load(char_data.idle)
+				if loaded_frames is SpriteFrames:
+					char_data.idle_frames = loaded_frames
+					print("✅ SpriteFrames cargado directamente: ", char_data.idle)
+				else:
+					print("⚠️ El archivo .tres no es un SpriteFrames: ", char_data.idle)
+			else:
+				# Procesar spritesheet horizontal a SpriteFrames
+				char_data.idle_frames = _create_sprite_frames_from_horizontal_spritesheet(char_data.idle)
+	else:
+		char_data.idle = ""
+
 	return char_data
+
+func _create_sprite_frames_from_horizontal_spritesheet(sprite_path: String, fps: float = 8.0) -> SpriteFrames:
+	"""Crea SpriteFrames a partir de un spritesheet horizontal.
+	   Asume que cada frame es cuadrado (ancho del frame = alto de la imagen)."""
+	var texture = load(sprite_path) as Texture2D
+	if not texture:
+		print("❌ Error cargando spritesheet: ", sprite_path)
+		return null
+	
+	var image = texture.get_image()
+	var sheet_width = image.get_width()
+	var sheet_height = image.get_height()
+	
+	# Calcular tamaño de frame (asumiendo frames cuadrados basados en la altura)
+	var frame_size = sheet_height
+	var num_frames = int(sheet_width / frame_size)
+	
+	if num_frames <= 0:
+		print("⚠️ Spritesheet inválido, usando imagen completa: ", sprite_path)
+		num_frames = 1
+		frame_size = sheet_width
+	
+	print("🎨 Procesando spritesheet: ", sprite_path, " - ", num_frames, " frames de ", frame_size, "x", sheet_height)
+	
+	var sprite_frames = SpriteFrames.new()
+	sprite_frames.remove_animation("default")  # Remover animación default vacía
+	sprite_frames.add_animation("idle")
+	sprite_frames.set_animation_speed("idle", fps)
+	sprite_frames.set_animation_loop("idle", true)
+	
+	# Extraer cada frame del spritesheet
+	for i in range(num_frames):
+		var frame_rect = Rect2i(i * frame_size, 0, frame_size, sheet_height)
+		var frame_image = image.get_region(frame_rect)
+		var frame_texture = ImageTexture.create_from_image(frame_image)
+		sprite_frames.add_frame("idle", frame_texture)
+	
+	return sprite_frames
 
 # ============================================================
 # FUNCIONES DE ROGUELIKE RUN

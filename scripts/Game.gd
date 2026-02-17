@@ -489,7 +489,7 @@ func _generate_roster(defs: Dictionary, min_chars: int, max_chars: int) -> Array
 		char_data.rate = char_def.get("rate", 1)
 		char_data.role = char_def.get("role", "")
 		char_data.deck_id = char_def.get("deck_id", 1)
-		char_data.range = char_def.get("range", "common")
+		char_data.char_range = char_def.get("range", "common")
 		var portrait_path = char_def.get("portrait", "")
 		char_data.sprite_path = portrait_path
 		
@@ -516,6 +516,23 @@ func _generate_roster(defs: Dictionary, min_chars: int, max_chars: int) -> Array
 		else:
 			char_data.portrait = null
 			print("DEBUG: No hay ruta de portrait especificada")
+		
+		# Cargar idle y crear idle_frames si existe
+		if char_def.has("idle"):
+			var idle_path = char_def["idle"]
+			char_data.idle = idle_path
+			if idle_path != "" and ResourceLoader.exists(idle_path):
+				# Detectar si es un .tres (SpriteFrames ya creado) o un .png (spritesheet)
+				if idle_path.ends_with(".tres"):
+					var loaded_frames = load(idle_path)
+					if loaded_frames is SpriteFrames:
+						char_data.idle_frames = loaded_frames
+						print("DEBUG: ✅ SpriteFrames cargado: ", idle_path)
+				else:
+					# Usar GameManager para procesar el spritesheet
+					if GameManager and GameManager.has_method("_create_sprite_frames_from_horizontal_spritesheet"):
+						char_data.idle_frames = GameManager._create_sprite_frames_from_horizontal_spritesheet(idle_path)
+					print("DEBUG: ✅ Idle procesado: ", idle_path)
 		
 		roster.append(char_data)
 	

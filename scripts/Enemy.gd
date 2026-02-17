@@ -85,7 +85,7 @@ func generate_actions() -> void:
 		
 		# Determinar número de acciones según el rango del enemigo
 		var num_actions = _get_actions_count_for_enemy(enemy)
-		var enemy_range = enemy.range if enemy.range != "" else "common"
+		var enemy_range = enemy.char_range if enemy.char_range != "" else "common"
 		print("  - ", enemy.name, " (", enemy_range, ") generará ", num_actions, " acciones")
 		
 		# Generar acciones basadas en el deck del enemigo
@@ -107,7 +107,7 @@ func generate_actions() -> void:
 
 func _get_actions_count_for_enemy(enemy) -> int:
 	"""Retorna el número de acciones según el rango del enemigo"""
-	var enemy_range = enemy.range if enemy.range != "" else "common"
+	var enemy_range = enemy.char_range if enemy.char_range != "" else "common"
 	match enemy_range:
 		"common":
 			return randi_range(1, 2)  # Comunes: 1-2 acciones
