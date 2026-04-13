@@ -28,6 +28,8 @@ NetworkValidator="*res://scripts/auth/NetworkValidator.gd"
 AuthManager="*res://scripts/auth/AuthManager.gd"
 SteamManager="*res://scripts/auth/SteamManager.gd"
 GameManager="*res://scripts/managers/GameManager.gd"
+PlayerDataManager="*res://scripts/managers/PlayerDataManager.gd"
+SurvivalManager="*res://scripts/managers/SurvivalManager.gd"
 
 [display]
 

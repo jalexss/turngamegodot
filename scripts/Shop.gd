@@ -1,5 +1,5 @@
 extends Control
-## Shop - Escena de tienda del roguelike
+## Shop - Escena de tienda de supervivencia
 ## Permite comprar buffos permanentes para los personajes
 
 var shop_buffs: Array = []  # Buffos disponibles en esta tienda

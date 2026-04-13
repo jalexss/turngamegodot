@@ -10,6 +10,7 @@
     "defense": 4,
     "rate": 1,
     "role": "HEALER",
+    "rarity": "common",
     "is_enemy": false
   },
   {
@@ -23,6 +24,7 @@
     "defense": 8,
     "rate": 1,
     "role": "TANK",
+    "rarity": "common",
     "is_enemy": false
   },
   {
@@ -36,6 +38,7 @@
     "defense": 6,
     "rate": 2,
     "role": "CARRY",
+    "rarity": "rare",
     "is_enemy": false
   },
   {
@@ -50,6 +53,7 @@
     "defense": 5,
     "rate": 1,
     "role": "CARRY",
+    "rarity": "common",
     "is_enemy": false,
     "unique_card_id": 1000
   }

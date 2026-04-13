@@ -106,10 +106,6 @@ func get_player_data() -> Dictionary:
 func get_username() -> String:
 	return _player_data.get("username", "")
 
-## Obtiene solo el email
-func get_email() -> String:
-	return _player_data.get("email", "")
-
 ## Obtiene el user ID
 func get_user_id() -> int:
 	return _player_data.get("id", -1)
@@ -179,8 +175,7 @@ func _handle_login_success(response: Dictionary) -> void:
 		access_token,
 		refresh_token,
 		user.get("id", -1),
-		user.get("username", "") if user.get("username") != null else "",
-		user.get("email", "") if user.get("email") != null else ""
+		user.get("username", "") if user.get("username") != null else ""
 	)
 	
 	_setup_token_refresh()
@@ -323,18 +318,19 @@ func validate_and_load_session() -> bool:
 		# Cargar datos de sesión
 		_player_data = {
 			"id": session_mgr.get_user_id(),
-			"username": session_mgr.get_username(),
-			"email": session_mgr.get_email()
+			"username": session_mgr.get_username()
 		}
 		
 		# Verificar si token necesita refresh
 		if session_mgr.is_access_token_expired():
 			var config = get_tree().root.get_node("Config")
 			if config.DEBUG_AUTH:
-				print("⏱️  [AuthManager] Token expirado, intentando refresh...")
-			_refresh_token_impl()
-			# Esperar resultado del refresh
-			await token_refreshed
+				print("⏱️  [AuthManager] Token expirado — forzando re-login con Steam")
+			# Token expirado: limpiar sesión y forzar nuevo login
+			_session_clear()
+			_set_state(AuthState.IDLE)
+			session_loaded.emit(false)
+			return false
 		else:
 			_setup_token_refresh()
 		

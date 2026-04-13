@@ -1,5 +1,5 @@
 extends Control
-## CharacterSelectModal - Modal para seleccionar personajes antes de iniciar el roguelike
+## CharacterSelectModal - Modal para seleccionar personajes antes de iniciar supervivencia
 ## Permite seleccionar hasta 3 personajes jugables
 
 signal selection_confirmed(characters: Array)
@@ -115,16 +115,34 @@ func _create_ui() -> void:
 	footer.add_child(confirm_btn)
 
 func _load_characters() -> void:
-	"""Carga los personajes jugables desde GameManager"""
+	"""Carga los personajes jugables desbloqueados desde GameManager"""
 	var gm = _get_game_manager()
 	if not gm:
 		print("❌ GameManager no disponible")
 		return
 	
-	var playable_chars = gm.get_playable_characters()
-	print("📋 Personajes jugables encontrados: ", playable_chars.size())
+	var pdm = get_tree().root.get_node_or_null("PlayerDataManager")
+	var unlocked_ids: Array = []
+	if pdm and pdm.is_loaded():
+		unlocked_ids = pdm.get_unlocked_character_ids()
 	
+	var playable_chars = gm.get_playable_characters()
+	var filtered: Array = []
 	for char_def in playable_chars:
+		if char_def.get("id") in unlocked_ids:
+			filtered.append(char_def)
+	
+	print("📋 Personajes desbloqueados para selección: ", filtered.size())
+	
+	if filtered.is_empty():
+		var msg = Label.new()
+		msg.text = "No tienes personajes desbloqueados.\nUsa el Gacha para obtenerlos."
+		msg.add_theme_font_size_override("font_size", 18)
+		msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		character_grid.add_child(msg)
+		return
+	
+	for char_def in filtered:
 		_create_character_slot(char_def)
 
 func _create_character_slot(char_def: Dictionary) -> void:

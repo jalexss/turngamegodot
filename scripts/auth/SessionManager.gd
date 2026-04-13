@@ -12,7 +12,6 @@ class SessionData:
 	var refreshToken: String = ""
 	var userId: int = -1
 	var username: String = ""
-	var email: String = ""
 	var createdAt: float = 0.0  # timestamp de creación de la sesión
 
 # ============================================================================
@@ -58,7 +57,6 @@ func load_session() -> bool:
 	_session.refreshToken = _config_file.get_value("session", "refresh_token", "")
 	_session.userId = _config_file.get_value("session", "user_id", -1)
 	_session.username = _config_file.get_value("session", "username", "")
-	_session.email = _config_file.get_value("session", "email", "")
 	_session.createdAt = _config_file.get_value("session", "created_at", 0.0)
 	
 	_is_loaded = true
@@ -70,19 +68,17 @@ func load_session() -> bool:
 	return true
 
 ## Guarda la sesión en archivo
-func save_session(access_token: String, refresh_token: String, user_id: int, username: String, email: String) -> bool:
+func save_session(access_token: String, refresh_token: String, user_id: int, username: String) -> bool:
 	_session.accessToken = access_token
 	_session.refreshToken = refresh_token
 	_session.userId = user_id
 	_session.username = username
-	_session.email = email
-	_session.createdAt = Time.get_ticks_msec() / 1000.0  # timestamp en segundos
+	_session.createdAt = Time.get_unix_time_from_system()  # timestamp UNIX real
 	
 	_config_file.set_value("session", "access_token", access_token)
 	_config_file.set_value("session", "refresh_token", refresh_token)
 	_config_file.set_value("session", "user_id", user_id)
 	_config_file.set_value("session", "username", username)
-	_config_file.set_value("session", "email", email)
 	_config_file.set_value("session", "created_at", _session.createdAt)
 	
 	var config = get_tree().root.get_node("Config")
@@ -116,10 +112,10 @@ func clear_session() -> void:
 	
 	var config = get_tree().root.get_node("Config")
 	# Eliminar archivo de sesión
-	if ResourceLoader.exists(config.SESSION_FILE_PATH):
+	if FileAccess.file_exists(config.SESSION_FILE_PATH):
 		var dir = DirAccess.open(config.SESSION_FILE_PATH.get_base_dir())
 		if dir:
-			dir.remove(config.SESSION_FILE_PATH)
+			dir.remove(config.SESSION_FILE_PATH.get_file())
 	
 	if config.DEBUG_AUTH:
 		print("🗑️  [SessionManager] Sesión eliminada")
@@ -160,7 +156,7 @@ func is_access_token_expired(access_token_duration: int = -1) -> bool:
 	if access_token_duration == -1:
 		access_token_duration = config.ACCESS_TOKEN_EXPIRY
 	
-	var current_time = Time.get_ticks_msec() / 1000.0
+	var current_time = Time.get_unix_time_from_system()
 	var expiry_time = _session.createdAt + access_token_duration
 	
 	# Refresca si le queda menos tiempo que el margen de seguridad
@@ -175,7 +171,7 @@ func get_access_token_remaining_time(access_token_duration: int = -1) -> float:
 	if access_token_duration == -1:
 		access_token_duration = config.ACCESS_TOKEN_EXPIRY
 	
-	var current_time = Time.get_ticks_msec() / 1000.0
+	var current_time = Time.get_unix_time_from_system()
 	var expiry_time = _session.createdAt + access_token_duration
 	var remaining = expiry_time - current_time
 	

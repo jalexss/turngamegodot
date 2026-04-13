@@ -1,5 +1,5 @@
 extends Control
-## Treasure - Escena de tesoro del roguelike
+## Treasure - Escena de tesoro de supervivencia
 ## Otorga oro al jugador
 
 var gold_reward: int = 0

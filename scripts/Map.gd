@@ -1,5 +1,5 @@
 extends Control
-## Map - Escena del mapa del roguelike
+## Map - Escena del mapa de supervivencia
 ## Muestra los nodos en un layout horizontal (izquierda a derecha) con ramificaciones verticales
 
 # Referencias a nodos
@@ -123,7 +123,7 @@ func _create_header() -> Control:
 	header.add_child(spacer)
 	
 	title_label = Label.new()
-	title_label.text = "🗺️ MAPA DEL ROGUELIKE"
+	title_label.text = "🗺️ MAPA DE SUPERVIVENCIA"
 	title_label.add_theme_font_size_override("font_size", 28)
 	header.add_child(title_label)
 	

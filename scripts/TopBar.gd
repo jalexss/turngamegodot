@@ -36,8 +36,8 @@ func _ready() -> void:
 	if menu_button:
 		menu_button.pressed.connect(_on_menu_button_pressed)
 	
-	# Crear elementos de oro y buffos si estamos en roguelike
-	_create_roguelike_ui()
+	# Crear elementos de oro y buffos si estamos en supervivencia
+	_create_survival_ui()
 	_connect_game_manager_signals()
 	
 	print("✅ TopBar configurado correctamente")
@@ -46,20 +46,20 @@ func _get_game_manager():
 	"""Obtiene referencia segura al GameManager"""
 	return get_node_or_null("/root/GameManager")
 
-func _create_roguelike_ui() -> void:
-	"""Crea elementos de UI específicos del roguelike (oro y buffos)"""
+func _create_survival_ui() -> void:
+	"""Crea elementos de UI específicos de supervivencia (oro y buffos)"""
 	var gm = _get_game_manager()
-	if not gm or not gm.is_roguelike_mode():
+	if not gm or not gm.is_survival_mode():
 		return
 	
-	# Buscar o crear contenedor para elementos de roguelike
+	# Buscar o crear contenedor para elementos de supervivencia
 	var content = get_node_or_null("Content")
 	if not content:
 		return
 	
 	# Crear separador
 	var sep = VSeparator.new()
-	sep.name = "RoguelikeSep"
+	sep.name = "SurvivalSep"
 	content.add_child(sep)
 	content.move_child(sep, 2)  # Después de LeftSection
 	

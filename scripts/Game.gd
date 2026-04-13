@@ -47,7 +47,7 @@ func _ready() -> void:
 	char_defs  = _load_char_defs("res://data/characters.json")
 	enemy_defs = _load_char_defs("res://data/enemys.json")
 	
-	# Verificar si estamos en modo roguelike con rosters externos
+	# Verificar si estamos en modo supervivencia con rosters externos
 	if _should_use_external_rosters():
 		var gm = _get_game_manager()
 		player_chars = gm.get_player_roster()
@@ -133,7 +133,7 @@ func _should_use_external_rosters() -> bool:
 	
 	# Auto-detectar si GameManager existe y tiene rosters
 	var gm = _get_game_manager()
-	if gm and gm.is_roguelike_mode():
+	if gm and gm.is_survival_mode():
 		var player_roster = gm.get_player_roster()
 		var enemy_roster = gm.get_enemy_roster()
 		if not player_roster.is_empty() and not enemy_roster.is_empty():
@@ -590,7 +590,7 @@ func _end_game(result: String) -> void:
 		var victory = (result == "VICTORIA")
 		ui.show_game_over(victory)
 	
-	# Notificar a GameManager si estamos en modo roguelike
+	# Notificar a GameManager si estamos en modo supervivencia
 	var gm = _get_game_manager()
 	if _should_use_external_rosters() and gm:
 		if result == "VICTORIA":

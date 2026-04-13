@@ -1,5 +1,5 @@
 extends Control
-## Rest - Escena de descanso/recuperación del roguelike
+## Rest - Escena de descanso/recuperación de supervivencia
 ## Permite curar a un personaje
 
 var selected_character = null

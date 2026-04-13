@@ -1,6 +1,6 @@
 extends Node
 ## GameManager - Autoload singleton para manejar el estado global del juego
-## Gestiona transiciones de escena, estado del roguelike run, y persistencia
+## Gestiona transiciones de escena, estado del survival run, y persistencia
 
 # Señales
 signal run_started
@@ -21,7 +21,7 @@ const TREASURE_SCENE = "res://scenes/Treasure.tscn"
 const RANDOM_EVENT_SCENE = "res://scenes/RandomEvent.tscn"
 
 # Estado del juego
-enum GameMode { NONE, ROGUELIKE, ADVENTURE, MULTIPLAYER }
+enum GameMode { NONE, SURVIVAL, ADVENTURE, MULTIPLAYER }
 enum RunState { NOT_STARTED, IN_MAP, IN_BATTLE, IN_EVENT, COMPLETED }
 
 # Tipos de nodos del mapa
@@ -30,7 +30,7 @@ enum NodeType { BATTLE, BOSS, SHOP, REST, TREASURE, RANDOM }
 var current_mode: GameMode = GameMode.NONE
 var run_state: RunState = RunState.NOT_STARTED
 
-# Estado del roguelike run
+# Estado del survival run
 var selected_characters: Array = []  # Array de CharacterData
 var current_seed: int = 0
 var current_node_index: int = 0
@@ -38,7 +38,7 @@ var current_branch_index: int = 0  # Índice del nodo seleccionado en el nivel a
 var total_nodes: int = 0
 var map_nodes: Array = []  # Array de arrays (niveles con múltiples nodos)
 
-# Sistema de monedas del roguelike
+# Sistema de monedas de supervivencia
 var gold: int = 0
 
 # Buffos permanentes obtenidos en la run
@@ -209,14 +209,14 @@ func _create_sprite_frames_from_horizontal_spritesheet(sprite_path: String, fps:
 	return sprite_frames
 
 # ============================================================
-# FUNCIONES DE ROGUELIKE RUN
+# FUNCIONES DE SUPERVIVENCIA RUN
 # ============================================================
 
-func start_roguelike_run(characters: Array) -> void:
-	"""Inicia una nueva partida de roguelike con los personajes seleccionados"""
-	print("🎮 Iniciando Roguelike Run con ", characters.size(), " personajes")
+func start_survival_run(characters: Array) -> void:
+	"""Inicia una nueva partida de supervivencia con los personajes seleccionados"""
+	print("🎮 Iniciando Supervivencia Run con ", characters.size(), " personajes")
 	
-	current_mode = GameMode.ROGUELIKE
+	current_mode = GameMode.SURVIVAL
 	run_state = RunState.IN_MAP
 	selected_characters = characters
 	current_node_index = 0
@@ -234,6 +234,11 @@ func start_roguelike_run(characters: Array) -> void:
 	
 	run_started.emit()
 	gold_changed.emit(gold)
+	
+	# Registrar run en backend
+	var sm = get_tree().root.get_node_or_null("SurvivalManager")
+	if sm:
+		sm.start_run(current_seed, selected_characters, map_nodes)
 	
 	# Cambiar a escena del mapa
 	get_tree().change_scene_to_file(MAP_SCENE)
@@ -588,6 +593,8 @@ func _advance_to_next_level() -> void:
 		# Run completada!
 		_complete_run(true)
 	else:
+		# Guardar progreso en backend
+		_save_progress_to_backend()
 		# Marcar primer nodo del siguiente nivel como disponible
 		run_state = RunState.IN_MAP
 		get_tree().change_scene_to_file(MAP_SCENE)
@@ -607,10 +614,23 @@ func on_battle_defeat() -> void:
 	battle_ended.emit(false)
 	_complete_run(false)
 
+func _save_progress_to_backend() -> void:
+	"""Guarda el progreso actual en el backend"""
+	var sm = get_tree().root.get_node_or_null("SurvivalManager")
+	if sm:
+		sm.save_progress(current_node_index, current_branch_index, gold, selected_characters, run_buffs)
+
 func _complete_run(victory: bool) -> void:
 	"""Completa la run actual"""
 	run_state = RunState.COMPLETED
 	print("🎮 Run completada - Victoria: ", victory)
+	
+	# Finalizar run en backend
+	var sm = get_tree().root.get_node_or_null("SurvivalManager")
+	if sm:
+		var result_str = "victory" if victory else "defeat"
+		sm.end_run(result_str)
+	
 	run_ended.emit(victory)
 	
 	# Volver al menú principal después de un delay
@@ -762,9 +782,9 @@ func get_enemy_roster() -> Array:
 	"""Retorna el roster de enemigos para la batalla actual"""
 	return current_enemy_roster
 
-func is_roguelike_mode() -> bool:
-	"""Verifica si estamos en modo roguelike"""
-	return current_mode == GameMode.ROGUELIKE
+func is_survival_mode() -> bool:
+	"""Verifica si estamos en modo supervivencia"""
+	return current_mode == GameMode.SURVIVAL
 
 func get_current_node_index() -> int:
 	"""Retorna el índice del nodo actual"""

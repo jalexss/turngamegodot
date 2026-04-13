@@ -162,11 +162,20 @@ func _transition_to_main_menu() -> void:
 # CALLBACKS: AUTHMANAGER
 # ============================================================================
 
-func _on_login_success(_user_data: Dictionary) -> void:
+func _on_login_success(user_data: Dictionary) -> void:
 	print("[Gateway] Login exitoso")
-	_show_status("Autenticado correctamente")
+	_show_status("Cargando datos del jugador...")
+
+	# Load player data into PlayerDataManager from login response
+	var pdm = get_tree().root.get_node("PlayerDataManager")
+	var chars = user_data.get("characters", [])
+	var inv = user_data.get("inventory", {})
+	if chars == null: chars = []
+	if inv == null: inv = {}
+	pdm.set_initial_data(chars, inv)
+
 	_set_flow_state(FlowState.AUTHENTICATED)
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(0.3).timeout
 	_transition_to_main_menu()
 
 func _on_login_failed(error: String) -> void:

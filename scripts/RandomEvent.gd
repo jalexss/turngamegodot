@@ -1,5 +1,5 @@
 extends Control
-## RandomEvent - Escena de evento aleatorio del roguelike
+## RandomEvent - Escena de evento aleatorio de supervivencia
 ## Puede ser: Recuperación, Tienda, Buffo gratis, o Oro aleatorio
 
 enum EventType { HEAL, SHOP, FREE_BUFF, GOLD }
