@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://b7fwjx8cb7yb1"]
+
+[ext_resource type="Script" uid="uid://cg4uc11quall6" path="res://scripts/ui/Gateway.gd" id="1_gateway_script"]
+
+[node name="Gateway" type="Control" unique_id=1707912948]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_gateway_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1100603824]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1051790928]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1763928906]
+layout_mode = 2
+theme_override_constants/separation = 30
