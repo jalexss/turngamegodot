@@ -1,5 +1,5 @@
 ## DebugMainMenu.gd - Panel de debug para MainMenu
-## Toggle con F9. Solo funciona en builds no-producción.
+## Toggle con ` (backtick). Solo funciona en builds no-producción.
 extends Control
 
 var _panel: PanelContainer
@@ -13,12 +13,13 @@ func _ready() -> void:
 	_build_panel()
 	_panel.visible = false
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_F9:
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_QUOTELEFT:
 		_visible = not _visible
 		_panel.visible = _visible
 		if _visible:
 			_refresh_cristales_label()
+		get_viewport().set_input_as_handled()
 
 func _build_panel() -> void:
 	_panel = PanelContainer.new()

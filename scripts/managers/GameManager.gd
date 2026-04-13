@@ -416,7 +416,7 @@ func _print_map_composition() -> void:
 
 func _get_node_type_name(node_type) -> String:
 	"""Retorna el nombre legible del tipo de nodo"""
-	match node_type:
+	match int(node_type):
 		NodeType.BATTLE: return "⚔️ Batalla"
 		NodeType.BOSS: return "💀 Boss"
 		NodeType.SHOP: return "🛒 Tienda"
@@ -481,7 +481,7 @@ func start_node(branch_index: int = 0) -> void:
 		node["current"] = false
 	current_node_data["current"] = true
 	
-	var node_type = current_node_data.get("type", NodeType.BATTLE)
+	var node_type = int(current_node_data.get("type", NodeType.BATTLE))
 	print("🎯 Iniciando nodo tipo: ", _get_node_type_name(node_type))
 	
 	match node_type:
@@ -618,7 +618,7 @@ func _save_progress_to_backend() -> void:
 	"""Guarda el progreso actual en el backend"""
 	var sm = get_tree().root.get_node_or_null("SurvivalManager")
 	if sm:
-		sm.save_progress(current_node_index, current_branch_index, gold, selected_characters, run_buffs)
+		sm.save_progress(current_node_index, current_branch_index, gold, selected_characters, run_buffs, [], map_nodes)
 
 func _complete_run(victory: bool) -> void:
 	"""Completa la run actual"""
@@ -640,6 +640,9 @@ func _complete_run(victory: bool) -> void:
 func return_to_main_menu() -> void:
 	"""Vuelve al menú principal y resetea el estado"""
 	print("🏠 Volviendo al menú principal")
+	# Guardar progreso antes de salir si estamos en supervivencia activa
+	if current_mode == GameMode.SURVIVAL and run_state != RunState.COMPLETED:
+		_save_progress_to_backend()
 	_reset_run_state()
 	get_tree().change_scene_to_file(MAIN_MENU_SCENE)
 

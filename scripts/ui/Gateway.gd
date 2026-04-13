@@ -126,13 +126,35 @@ func _validate_session() -> void:
 
 func _on_session_loaded(has_valid_session: bool) -> void:
 	if has_valid_session:
-		print("[Gateway] Sesión válida encontrada - yendo a MainMenu...")
+		print("[Gateway] Sesión válida encontrada - cargando datos del jugador...")
+		_show_status("Cargando datos del jugador...")
 		_set_flow_state(FlowState.AUTHENTICATED)
+
+		# Fetch player data before transitioning (session resume doesn't include it)
+		var pdm = get_tree().root.get_node("PlayerDataManager")
+		if not pdm.is_loaded():
+			pdm.fetch_characters()
+			pdm.fetch_inventory()
+			# Wait for characters (critical path) with timeout
+			var timeout_timer = get_tree().create_timer(8.0)
+			var result = await _await_first([pdm.characters_loaded, pdm.data_load_failed, timeout_timer.timeout])
+			if result == "data_load_failed" or result == "timeout":
+				print("[Gateway] ⚠️ Error cargando datos — reintentando login con Steam")
+				_show_status("Error de carga — reautenticando...")
+				var auth_mgr = get_tree().root.get_node("AuthManager")
+				auth_mgr.logout()
+				_set_flow_state(FlowState.AUTHENTICATING)
+				_start_steam_login()
+				return
+
 		_transition_to_main_menu()
 		return
 
 	# No hay sesión guardada: iniciar auto-login Steam
 	print("[Gateway] Sin sesión guardada - iniciando Steam auto-login")
+	_start_steam_login()
+
+func _start_steam_login() -> void:
 	_show_status("Obteniendo ticket de Steam...")
 	_set_flow_state(FlowState.AUTHENTICATING)
 	var steam_mgr = get_tree().root.get_node("SteamManager")
@@ -141,6 +163,26 @@ func _on_session_loaded(has_valid_session: bool) -> void:
 	else:
 		# SteamManager aún inicializando (call_deferred), esperar señal
 		_show_status("Esperando inicialización de Steam...")
+
+## Awaits the first of multiple signals and returns which one fired.
+## Returns: "characters_loaded", "data_load_failed", or "timeout"
+func _await_first(signals: Array) -> String:
+	# signals = [characters_loaded, data_load_failed, timeout]
+	var result := ""
+	var signal_names := ["characters_loaded", "data_load_failed", "timeout"]
+
+	for i in range(signals.size()):
+		var sig = signals[i]
+		var name = signal_names[i]
+		sig.connect(func(_a = null, _b = null, _c = null):
+			if result == "":
+				result = name
+		, CONNECT_ONE_SHOT)
+
+	while result == "":
+		await get_tree().process_frame
+
+	return result
 
 # ============================================================================
 # TRANSICIONES

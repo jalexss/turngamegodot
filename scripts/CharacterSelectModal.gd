@@ -122,9 +122,26 @@ func _load_characters() -> void:
 		return
 	
 	var pdm = get_tree().root.get_node_or_null("PlayerDataManager")
-	var unlocked_ids: Array = []
-	if pdm and pdm.is_loaded():
-		unlocked_ids = pdm.get_unlocked_character_ids()
+	if not pdm:
+		print("❌ PlayerDataManager no disponible")
+		return
+
+	# Wait for data if not loaded yet
+	if not pdm.is_loaded():
+		print("⏳ Esperando carga de datos del jugador...")
+		var loading_label = Label.new()
+		loading_label.name = "LoadingLabel"
+		loading_label.text = "Cargando personajes..."
+		loading_label.add_theme_font_size_override("font_size", 18)
+		loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		character_grid.add_child(loading_label)
+		await pdm.characters_loaded
+		# Remove loading label
+		if is_instance_valid(loading_label):
+			loading_label.queue_free()
+
+	var unlocked_ids: Array = pdm.get_unlocked_character_ids()
+	print("📋 IDs desbloqueados: ", unlocked_ids)
 	
 	var playable_chars = gm.get_playable_characters()
 	var filtered: Array = []

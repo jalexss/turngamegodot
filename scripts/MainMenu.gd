@@ -10,6 +10,10 @@ var _preview_texture: TextureRect
 var _preview_label: Label
 var _active_modal: Control = null
 
+var _play_btn: Button
+var _chars_btn: Button
+var _gacha_btn: Button
+
 var _rarity_colors := {
 	"common": Color(0.6, 0.6, 0.6),
 	"rare": Color(0.3, 0.5, 1.0),
@@ -23,14 +27,22 @@ var _rarity_colors := {
 
 func _ready() -> void:
 	_build_ui()
-	_update_cristales()
-	_update_preview()
 
+	# Connect signals BEFORE updating UI so callbacks fire if data arrives mid-setup
 	var pdm = get_tree().root.get_node("PlayerDataManager")
 	pdm.inventory_loaded.connect(_on_inventory_loaded)
 	pdm.characters_loaded.connect(_on_characters_loaded)
 	pdm.gacha_result.connect(_on_gacha_result)
 	pdm.gacha_failed.connect(_on_gacha_failed)
+
+	# Show loading state or current data depending on PDM state
+	if pdm.is_loaded():
+		_update_cristales()
+		_update_preview()
+		_set_nav_buttons_enabled(true)
+	else:
+		_preview_label.text = "Cargando..."
+		_set_nav_buttons_enabled(false)
 
 	var auth_mgr = get_tree().root.get_node("AuthManager")
 	print("🏠 MainMenu cargado - Usuario: %s" % auth_mgr.get_username())
@@ -167,14 +179,17 @@ func _build_bottom_nav() -> CenterContainer:
 	var play_btn = _create_nav_button("Jugar", "🎮", Color(0.2, 0.6, 0.3))
 	play_btn.pressed.connect(_on_play_pressed)
 	hbox.add_child(play_btn)
+	_play_btn = play_btn
 
 	var chars_btn = _create_nav_button("Personajes", "👥", Color(0.3, 0.4, 0.7))
 	chars_btn.pressed.connect(_on_characters_pressed)
 	hbox.add_child(chars_btn)
+	_chars_btn = chars_btn
 
 	var gacha_btn = _create_nav_button("Gacha", "💎", Color(0.7, 0.4, 0.8))
 	gacha_btn.pressed.connect(_on_gacha_pressed)
 	hbox.add_child(gacha_btn)
+	_gacha_btn = gacha_btn
 
 	return center
 
@@ -238,6 +253,12 @@ func _on_inventory_loaded(_cristales: int) -> void:
 
 func _on_characters_loaded(_chars: Array) -> void:
 	_update_preview()
+	_set_nav_buttons_enabled(true)
+
+func _set_nav_buttons_enabled(enabled: bool) -> void:
+	if _play_btn: _play_btn.disabled = not enabled
+	if _chars_btn: _chars_btn.disabled = not enabled
+	if _gacha_btn: _gacha_btn.disabled = not enabled
 
 # ============================================================================
 # BUTTON HANDLERS
@@ -317,6 +338,14 @@ func _show_game_mode_modal() -> void:
 		resume_btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.4))
 		resume_btn.pressed.connect(_on_resume_survival)
 		vbox.add_child(resume_btn)
+
+		var restart_btn = Button.new()
+		restart_btn.text = "🔄 Reiniciar Supervivencia"
+		restart_btn.custom_minimum_size = Vector2(0, 45)
+		restart_btn.add_theme_font_size_override("font_size", 18)
+		restart_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
+		restart_btn.pressed.connect(_on_restart_survival)
+		vbox.add_child(restart_btn)
 		vbox.add_child(HSeparator.new())
 
 	var rogue_btn = Button.new()
@@ -362,6 +391,14 @@ func _on_resume_survival() -> void:
 	var sm = get_tree().root.get_node_or_null("SurvivalManager")
 	if sm:
 		sm.resume_run()
+
+func _on_restart_survival() -> void:
+	_close_active_modal()
+	# Abandon the active run, then start character select for a new one
+	var sm = get_tree().root.get_node_or_null("SurvivalManager")
+	if sm:
+		sm.end_run("abandoned")
+	_show_character_select()
 
 func _show_character_select() -> void:
 	var modal = CharacterSelectModalScene.instantiate()

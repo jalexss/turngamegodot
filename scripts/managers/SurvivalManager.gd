@@ -42,7 +42,7 @@ func start_run(seed_val: int, characters: Array, map_data: Array) -> void:
 	_make_auth_request(url, HTTPClient.METHOD_POST, body, "_on_start_run_response")
 
 ## Save progress after node reward selection
-func save_progress(floor_idx: int, branch_idx: int, gold_val: int, characters: Array, buffs: Array, items: Array = []) -> void:
+func save_progress(floor_idx: int, branch_idx: int, gold_val: int, characters: Array, buffs: Array, items: Array = [], map_data: Array = []) -> void:
 	if _saving:
 		print("⚠️ SurvivalManager: ya se está guardando, ignorando")
 		return
@@ -54,7 +54,8 @@ func save_progress(floor_idx: int, branch_idx: int, gold_val: int, characters: A
 		"gold": gold_val,
 		"characters": _serialize_characters(characters),
 		"run_buffs": buffs,
-		"items": items
+		"items": items,
+		"map_data": map_data
 	})
 	_make_auth_request(url, HTTPClient.METHOD_PUT, body, "_on_save_progress_response")
 
@@ -97,16 +98,16 @@ func resume_run() -> void:
 	# Restore GameManager state
 	gm.current_mode = gm.GameMode.SURVIVAL
 	gm.run_state = gm.RunState.IN_MAP
-	gm.current_seed = run.get("seed", 0)
-	gm.current_node_index = run.get("current_floor", 0)
-	gm.current_branch_index = run.get("current_branch", 0)
-	gm.gold = run.get("gold", 0)
+	gm.current_seed = int(run.get("seed", 0))
+	gm.current_node_index = int(run.get("current_floor", 0))
+	gm.current_branch_index = int(run.get("current_branch", 0))
+	gm.gold = int(run.get("gold", 0))
 	gm.run_buffs = run.get("run_buffs", [])
 
-	# Restore map
+	# Restore map — fix types from JSON (floats → ints for enum matching)
 	var map_data = run.get("map_data", [])
-	gm.map_nodes = map_data
-	gm.total_nodes = map_data.size()
+	gm.map_nodes = _fix_map_data_types(map_data)
+	gm.total_nodes = gm.map_nodes.size()
 
 	# Restore characters
 	var chars_data = run.get("characters", [])
@@ -114,11 +115,11 @@ func resume_run() -> void:
 	for cdict in chars_data:
 		var char_data = gm.create_character_data(cdict)
 		# Override HP with saved HP
-		char_data.hp = cdict.get("hp", char_data.max_hp)
+		char_data.hp = int(cdict.get("hp", char_data.max_hp))
 		# Restore permanent buffs
 		var saved_buffs = cdict.get("permanent_buffs", [])
 		for buff in saved_buffs:
-			char_data.apply_permanent_buff(buff.get("type", ""), buff.get("value", 0), buff.get("source", "resume"))
+			char_data.apply_permanent_buff(buff.get("type", ""), int(buff.get("value", 0)), buff.get("source", "resume"))
 		gm.selected_characters.append(char_data)
 
 	gm.gold_changed.emit(gm.gold)
@@ -128,6 +129,36 @@ func resume_run() -> void:
 
 	# Navigate to map
 	get_tree().change_scene_to_file(gm.MAP_SCENE)
+
+# ============================================================================
+# TYPE CONVERSION (JSON floats → ints)
+# ============================================================================
+
+## GDScript's JSON.parse_string converts all numbers to float.
+## GDScript match is type-strict (0.0 != 0), so we must cast back to int.
+func _fix_map_data_types(map_data) -> Array:
+	if not map_data is Array:
+		return []
+	var fixed: Array = []
+	for level in map_data:
+		if not level is Array:
+			fixed.append(level)
+			continue
+		var fixed_level: Array = []
+		for node in level:
+			if node is Dictionary:
+				fixed_level.append(_fix_node_types(node))
+			else:
+				fixed_level.append(node)
+		fixed.append(fixed_level)
+	return fixed
+
+func _fix_node_types(node: Dictionary) -> Dictionary:
+	var fixed = node.duplicate(true)
+	# Only "type" must be int for match/enum comparison in GameManager
+	if fixed.has("type") and fixed["type"] is float:
+		fixed["type"] = int(fixed["type"])
+	return fixed
 
 # ============================================================================
 # SERIALIZATION
@@ -209,7 +240,10 @@ func _on_save_progress_response(_result: int, response_code: int, _headers: Pack
 	if _result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		save_failed.emit(data.get("error", "Error al guardar progreso"))
 		return
-	_active_run = data.get("run", _active_run)
+	# Merge response into cached run (don't replace — response may be partial)
+	var save_data = data.get("run", {})
+	for key in save_data.keys():
+		_active_run[key] = save_data[key]
 	print("💾 Progreso guardado — piso ", _active_run.get("current_floor", "?"))
 	run_saved.emit()
 
